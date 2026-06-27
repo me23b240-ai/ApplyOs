@@ -34,18 +34,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-const pdfBytes = await buildPDF(text.trim());
+    const pdfBytes = await buildPDF(text.trim());
+    const pdfBuffer = Buffer.from(pdfBytes);  // ✅ convert Uint8Array → Buffer
 
-const pdfBuffer = Buffer.from(pdfBytes);
-
-return new Response(pdfBuffer, {
-  status: 200,
-  headers: {
-    "Content-Type": "application/pdf",
-    "Content-Disposition":
-      'attachment; filename="optimized_resume.pdf"',
-  },
-});
+    return new Response(pdfBuffer, {  // ✅ pass Buffer, not Uint8Array
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="optimized_resume.pdf"',
+      },
+    });
   } catch (err) {
     console.error("[/download] error:", err);
     return NextResponse.json(
@@ -76,7 +74,6 @@ async function buildPDF(text: string): Promise<Uint8Array> {
     if (y - h < MB) newPage();
   };
 
-  // ─── Safe text wrapper ───────────────────────────────
   const drawWrapped = (str: string, size = SZ_BODY, indent = 0) => {
     const words = str.split(" ");
     let line = "";
@@ -106,11 +103,9 @@ async function buildPDF(text: string): Promise<Uint8Array> {
     }
   };
 
-  // ─── Render sections ────────────────────────────────
   for (const sec of sections) {
     if (!sec.lines.length) continue;
 
-    // ── HEADER (Name + Contact) ──
     if (sec.header === "__HEADER__") {
       const name = sec.lines[0] || "Resume";
 
@@ -142,7 +137,6 @@ async function buildPDF(text: string): Promise<Uint8Array> {
       continue;
     }
 
-    // ── SECTION TITLE ──
     checkSpace(40);
     y -= 6;
 
@@ -165,7 +159,6 @@ async function buildPDF(text: string): Promise<Uint8Array> {
 
     y -= 10;
 
-    // ── CONTENT ──
     for (const line of sec.lines) {
       const t = line.trim();
       if (!t) continue;
@@ -192,7 +185,6 @@ async function buildPDF(text: string): Promise<Uint8Array> {
     y -= 8;
   }
 
-  // ─── Page numbers ────────────────────────────────
   const pages = pdf.getPages();
   if (pages.length > 1) {
     pages.forEach((p, i) => {
@@ -224,8 +216,8 @@ function parseSections(text: string) {
     "PROFESSIONAL SUMMARY",
   ];
 
-  const sections: any[] = [];
-  let current: any = null;
+  const sections: { header: string; lines: string[] }[] = [];
+  let current: { header: string; lines: string[] } | null = null;
 
   for (const l of lines) {
     const t = l.trim();

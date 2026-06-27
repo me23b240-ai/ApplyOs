@@ -34,16 +34,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pdfBytes = await buildPDF(text.trim());
+const pdfBytes = await buildPDF(text.trim());
 
-    return new NextResponse(pdfBytes, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="optimized_resume.pdf"',
-        "Content-Length": pdfBytes.byteLength.toString(),
-      },
-    });
+const pdfBuffer = Buffer.from(pdfBytes);
+
+return new Response(pdfBuffer, {
+  status: 200,
+  headers: {
+    "Content-Type": "application/pdf",
+    "Content-Disposition":
+      'attachment; filename="optimized_resume.pdf"',
+  },
+});
   } catch (err) {
     console.error("[/download] error:", err);
     return NextResponse.json(

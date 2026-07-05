@@ -2,6 +2,35 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  Zap,
+  LayoutGrid,
+  KanbanSquare,
+  Sparkles,
+  Plus,
+  Trash2,
+  UploadCloud,
+  FileText,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Download,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Inbox,
+  TrendingUp,
+  Award,
+  CalendarClock,
+  SendHorizontal,
+  Building2,
+  KeyRound,
+  Zap as Bolt,
+} from "lucide-react";
+
+/* ============================================================
+   TYPES  (unchanged)
+   ============================================================ */
 
 type Status = "applied" | "oa" | "interview" | "rejected" | "offer";
 
@@ -31,15 +60,61 @@ interface AnalysisResult {
   quickWins: string[];
 }
 
-const STATUS_META: Record<Status, { label: string; color: string; bg: string }> = {
-  applied:   { label: "Applied",   color: "#93c5fd", bg: "rgba(147,197,253,0.12)" },
-  oa:        { label: "OA",        color: "#c4b5fd", bg: "rgba(196,181,253,0.12)" },
-  interview: { label: "Interview", color: "#6ee7b7", bg: "rgba(110,231,183,0.12)" },
-  rejected:  { label: "Rejected",  color: "#fca5a5", bg: "rgba(252,165,165,0.12)" },
-  offer:     { label: "Offer 🎉",  color: "#fde68a", bg: "rgba(253,230,138,0.12)" },
+/* ============================================================
+   STATUS META — same keys, new premium palette
+   ============================================================ */
+
+   type StatusMeta = {
+    label: string;
+    color: string;
+    bg: string;
+    border: string;
+    dot: string;
+  };
+  
+  const STATUS_META: Record<Status, StatusMeta> = {
+  applied: {
+    label: "Applied",
+    color: "#2563EB",
+    bg: "#EFF4FF",
+    border: "#DCE7FE",
+    dot: "#2563EB",
+  },
+  oa: {
+    label: "OA",
+    color: "#7C3AED",
+    bg: "#F5F0FE",
+    border: "#E4D8FC",
+    dot: "#7C3AED",
+  },
+  interview: {
+    label: "Interview",
+    color: "#B45309",
+    bg: "#FFF7EB",
+    border: "#FCE8C6",
+    dot: "#D97706",
+  },
+  rejected: {
+    label: "Rejected",
+    color: "#DC2626",
+    bg: "#FEF2F2",
+    border: "#FBDADA",
+    dot: "#DC2626",
+  },
+  offer: {
+    label: "Offer",
+    color: "#16A34A",
+    bg: "#F0FCF4",
+    border: "#CFF3DB",
+    dot: "#16A34A",
+  },
 };
 
 const STATUSES = Object.keys(STATUS_META) as Status[];
+
+/* ============================================================
+   HOOKS  (business logic — UNCHANGED)
+   ============================================================ */
 
 function useTracker() {
   const [apps, setApps] = useState<Application[]>([]);
@@ -58,7 +133,9 @@ function useTracker() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchApps(); }, [fetchApps]);
+  useEffect(() => {
+    fetchApps();
+  }, [fetchApps]);
 
   const addApplication = async () => {
     if (!company.trim() || !role.trim() || submitting) return;
@@ -77,24 +154,41 @@ function useTracker() {
 
   const updateStatus = async (id: string, status: Status) => {
     await supabase.from("applications").update({ status }).eq("id", id);
-    setApps(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
   };
 
   const deleteApp = async (id: string) => {
     await supabase.from("applications").delete().eq("id", id);
-    setApps(prev => prev.filter(a => a.id !== id));
+    setApps((prev) => prev.filter((a) => a.id !== id));
   };
 
   const stats = {
     total: apps.length,
-    interviews: apps.filter(a => a.status === "interview").length,
-    offers: apps.filter(a => a.status === "offer").length,
+    interviews: apps.filter((a) => a.status === "interview").length,
+    offers: apps.filter((a) => a.status === "offer").length,
     rate: apps.length
-      ? Math.round((apps.filter(a => ["interview", "offer"].includes(a.status)).length / apps.length) * 100)
+      ? Math.round(
+          (apps.filter((a) => ["interview", "offer"].includes(a.status))
+            .length /
+            apps.length) *
+            100
+        )
       : 0,
   };
 
-  return { apps, loading, company, role, submitting, stats, setCompany, setRole, addApplication, updateStatus, deleteApp };
+  return {
+    apps,
+    loading,
+    company,
+    role,
+    submitting,
+    stats,
+    setCompany,
+    setRole,
+    addApplication,
+    updateStatus,
+    deleteApp,
+  };
 }
 
 function useStudio() {
@@ -132,7 +226,8 @@ function useStudio() {
       if (!(window as any).pdfjsLib) {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement("script");
-          script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+          script.src =
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
           script.onload = () => resolve();
           script.onerror = () => reject(new Error("Failed to load pdf.js"));
           document.head.appendChild(script);
@@ -152,7 +247,9 @@ function useStudio() {
         fullText += pageText + "\n";
       }
       if (!fullText.trim()) {
-        setError("Could not extract text. Make sure this is a text-based PDF, not a scanned image.");
+        setError(
+          "Could not extract text. Make sure this is a text-based PDF, not a scanned image."
+        );
         setPhase("idle");
         return;
       }
@@ -221,580 +318,908 @@ Return this exact JSON structure:
     }
   };
 
-  const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+  const wordCount = (text: string) =>
+    text.trim().split(/\s+/).filter(Boolean).length;
 
   return {
-    phase, resumeFile, resumeText, jobDesc, analysis, error, showPreview, fileInputRef,
-    setJobDesc, setShowPreview, selectFile, uploadPDF, analyzeResume, wordCount,
+    phase,
+    resumeFile,
+    resumeText,
+    jobDesc,
+    analysis,
+    error,
+    showPreview,
+    fileInputRef,
+    setJobDesc,
+    setShowPreview,
+    selectFile,
+    uploadPDF,
+    analyzeResume,
+    wordCount,
   };
 }
 
-function Sidebar({
-  activeTab, setActiveTab, stats,
+/* ============================================================
+   PRESENTATIONAL COMPONENTS
+   ============================================================ */
+
+type Tab = "dashboard" | "tracker" | "studio";
+
+function Navbar({
+  activeTab,
+  setActiveTab,
 }: {
-  activeTab: "dashboard" | "tracker" | "studio";
-  setActiveTab: (t: "dashboard" | "tracker" | "studio") => void;
-  stats: { total: number; interviews: number; offers: number; rate: number };
+  activeTab: Tab;
+  setActiveTab: (t: Tab) => void;
 }) {
-  const navItems = [
-    { id: "dashboard", icon: "⊞", label: "Dashboard" },
-    { id: "tracker",   icon: "📅", label: "Job Tracker" },
-    { id: "studio",    icon: "✦",  label: "AI Studio", badge: "NEW" },
-  ] as const;
+  const items: { id: Tab; label: string; icon: typeof LayoutGrid }[] = [
+    { id: "dashboard", label: "Overview", icon: LayoutGrid },
+    { id: "tracker", label: "Tracker", icon: KanbanSquare },
+    { id: "studio", label: "Resume Studio", icon: Sparkles },
+  ];
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-logo">
-        <span className="sidebar-logo-icon">⚡</span>
-        <span className="sidebar-logo-text">ApplyOS</span>
-      </div>
-      <nav className="sidebar-nav">
-        {navItems.map(item => (
-          <button
-            key={item.id}
-            className={`sidebar-item ${activeTab === item.id ? "sidebar-item-active" : ""}`}
-            onClick={() => setActiveTab(item.id)}
-          >
-            <span className="sidebar-item-icon">{item.icon}</span>
-            <span className="sidebar-item-label">{item.label}</span>
-            {"badge" in item && item.badge && (
-              <span className="sidebar-badge">{item.badge}</span>
-            )}
-          </button>
-        ))}
-      </nav>
-      <div className="sidebar-stats">
-        <p className="sidebar-stats-title">STATS OVERVIEW</p>
-        {[
-          { icon: "📤", label: "Total Applied",  value: stats.total,         color: "#93c5fd" },
-          { icon: "📅", label: "Interviews",     value: stats.interviews,    color: "#6ee7b7" },
-          { icon: "⭐", label: "Offers",         value: stats.offers,        color: "#fde68a" },
-          { icon: "📈", label: "Response Rate",  value: `${stats.rate}%`,   color: "#a78bfa" },
-        ].map(s => (
-          <div className="sidebar-stat" key={s.label}>
-            <div className="sidebar-stat-icon" style={{ background: `${s.color}18`, color: s.color }}>{s.icon}</div>
-            <div>
-              <p className="sidebar-stat-value">{s.value}</p>
-              <p className="sidebar-stat-label">{s.label}</p>
-            </div>
+    <header className="sticky top-0 z-40 border-b border-[#E5E7EB] bg-[#F8FAFC]/85 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#111827] text-white">
+            <Bolt className="h-4 w-4" strokeWidth={2.5} />
           </div>
-        ))}
-      </div>
-      <div className="sidebar-footer">
-        <div className="sidebar-avatar">A</div>
-        <div>
-          <p className="sidebar-footer-name">ApplyOS</p>
-          <p className="sidebar-footer-sub">Your career companion</p>
+          <span className="text-[15px] font-semibold tracking-tight text-[#111827]">
+            ApplyOS
+          </span>
+        </div>
+
+        <nav className="hidden items-center gap-1 rounded-full border border-[#E5E7EB] bg-white p-1 shadow-sm sm:flex">
+          {items.map((item) => {
+            const Icon = item.icon;
+            const active = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all duration-200 ${
+                  active
+                    ? "bg-[#111827] text-white shadow-sm"
+                    : "text-[#6B7280] hover:bg-[#F8FAFC] hover:text-[#111827]"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" strokeWidth={2.25} />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#111827] text-[12px] font-semibold text-white">
+          A
         </div>
       </div>
-    </aside>
+
+      {/* mobile tabs */}
+      <div className="flex gap-1 overflow-x-auto border-t border-[#E5E7EB] px-4 py-2 sm:hidden">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
+                active
+                  ? "bg-[#111827] text-white"
+                  : "bg-white text-[#6B7280] border border-[#E5E7EB]"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    </header>
   );
 }
 
-function DashboardTab({
-  stats, setActiveTab,
+function Hero({ setActiveTab }: { setActiveTab: (t: Tab) => void }) {
+  return (
+    <section className="mx-auto max-w-7xl px-6 pb-4 pt-16 sm:pt-20">
+      <div className="animate-fade-up max-w-2xl">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-white px-3 py-1 text-[12px] font-medium text-[#6B7280] shadow-sm">
+          <Sparkles className="h-3 w-3 text-[#2563EB]" />
+          AI-powered career workspace
+        </span>
+        <h1 className="mt-5 text-[36px] font-semibold leading-[1.1] tracking-tight text-[#111827] sm:text-[46px]">
+          Land your next role,
+          <br />
+          <span className="text-[#6B7280]">systematically.</span>
+        </h1>
+        <p className="mt-4 max-w-md text-[15px] leading-relaxed text-[#6B7280]">
+          Track every application in one board, and let AI tell you exactly
+          what to fix before you hit submit.
+        </p>
+        <div className="mt-7 flex flex-wrap gap-3">
+          <button
+            onClick={() => setActiveTab("tracker")}
+            className="group inline-flex items-center gap-2 rounded-lg bg-[#111827] px-4 py-2.5 text-[13.5px] font-medium text-white shadow-sm transition-all hover:bg-[#1F2937] active:scale-[0.98]"
+          >
+            <KanbanSquare className="h-4 w-4" />
+            Open Tracker
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </button>
+          <button
+            onClick={() => setActiveTab("studio")}
+            className="group inline-flex items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 py-2.5 text-[13.5px] font-medium text-[#111827] shadow-sm transition-all hover:border-[#2563EB]/30 hover:bg-[#EFF4FF] active:scale-[0.98]"
+          >
+            <Sparkles className="h-4 w-4 text-[#2563EB]" />
+            Analyze Resume
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StatsCards({
+  stats,
 }: {
   stats: { total: number; interviews: number; offers: number; rate: number };
-  setActiveTab: (t: "dashboard" | "tracker" | "studio") => void;
+}) {
+  const cards = [
+    {
+      label: "Total applied",
+      value: stats.total,
+      icon: SendHorizontal,
+      accent: "#2563EB",
+    },
+    {
+      label: "Interviews",
+      value: stats.interviews,
+      icon: CalendarClock,
+      accent: "#D97706",
+    },
+    { label: "Offers", value: stats.offers, icon: Award, accent: "#16A34A" },
+    {
+      label: "Response rate",
+      value: `${stats.rate}%`,
+      icon: TrendingUp,
+      accent: "#7C3AED",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {cards.map((c, i) => {
+        const Icon = c.icon;
+        return (
+          <div
+            key={c.label}
+            style={{ animationDelay: `${i * 60}ms` }}
+            className="animate-fade-up group rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(17,24,39,0.08)]"
+          >
+            <div
+              className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg"
+              style={{ background: `${c.accent}14`, color: c.accent }}
+            >
+              <Icon className="h-4 w-4" strokeWidth={2.25} />
+            </div>
+            <p className="text-[26px] font-semibold leading-none tracking-tight text-[#111827]">
+              {c.value}
+            </p>
+            <p className="mt-2 text-[12.5px] font-medium text-[#6B7280]">
+              {c.label}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: typeof Inbox;
+  title: string;
+  subtitle: string;
 }) {
   return (
-    <div className="tab-content">
-      <div className="dash-hero">
-        <div>
-          <h1 className="dash-title">AI-Powered Job Application Assistant</h1>
-          <p className="dash-sub">Track your applications and use AI to optimize your resume for any job description.</p>
-        </div>
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E5E7EB] bg-white/60 px-6 py-14 text-center">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-[#F8FAFC] text-[#9CA3AF]">
+        <Icon className="h-5 w-5" strokeWidth={1.75} />
       </div>
+      <p className="text-[14px] font-medium text-[#111827]">{title}</p>
+      <p className="mt-1 max-w-xs text-[12.5px] text-[#6B7280]">{subtitle}</p>
+    </div>
+  );
+}
 
-      <div className="dash-stats">
-        {[
-          { icon: "📤", label: "Total Applied",  sub: "Track all your applications",  value: stats.total,      color: "#93c5fd" },
-          { icon: "📅", label: "Interviews",     sub: "Interview rounds",             value: stats.interviews, color: "#6ee7b7" },
-          { icon: "⭐", label: "Offers",         sub: "Job offers received",          value: stats.offers,     color: "#fde68a" },
-          { icon: "📈", label: "Response Rate",  sub: "Success rate",                 value: `${stats.rate}%`, color: "#a78bfa" },
-        ].map(s => (
-          <div className="dash-stat-card" key={s.label}>
-            <div className="dash-stat-icon" style={{ background: `${s.color}18`, color: s.color }}>{s.icon}</div>
-            <div className="dash-stat-value" style={{ color: s.color }}>{s.value}</div>
-            <div className="dash-stat-label">{s.label}</div>
-            <div className="dash-stat-sub">{s.sub}</div>
+function KanbanCard({
+  app,
+  updateStatus,
+  deleteApp,
+}: {
+  app: Application;
+  updateStatus: (id: string, status: Status) => void;
+  deleteApp: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const date = new Date(app.created_at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+
+  return (
+    <div className="group relative rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#D1D5DB] hover:shadow-[0_10px_24px_rgba(17,24,39,0.08)]">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F8FAFC] text-[#6B7280]">
+            <Building2 className="h-3.5 w-3.5" />
           </div>
-        ))}
-      </div>
-
-      <div className="dash-cta-grid">
-        <div className="dash-cta-card">
-          <div className="dash-cta-icon" style={{ background: "rgba(99,102,241,0.15)", color: "#a78bfa" }}>📅</div>
-          <h3 className="dash-cta-title">Job Tracker</h3>
-          <p className="dash-cta-desc">Add and manage all your job applications in one place. Track status from applied to offer.</p>
-          <button className="btn btn-primary" onClick={() => setActiveTab("tracker")}>Open Tracker →</button>
-        </div>
-        <div className="dash-cta-card">
-          <div className="dash-cta-icon" style={{ background: "rgba(6,182,212,0.15)", color: "#38bdf8" }}>✦</div>
-          <h3 className="dash-cta-title">AI Resume Studio</h3>
-          <p className="dash-cta-desc">Upload your resume and paste a job description. Get an ATS score and actionable feedback instantly.</p>
-          <button className="btn btn-accent" onClick={() => setActiveTab("studio")}>Open AI Studio →</button>
-        </div>
-      </div>
-
-      <div className="dash-features">
-        {[
-          { icon: "✦", color: "#a78bfa", label: "Smart Analysis",      sub: "AI-powered ATS score and feedback" },
-          { icon: "📋", color: "#6ee7b7", label: "Resume Optimization", sub: "Tailored suggestions to stand out" },
-          { icon: "🎯", color: "#fbbf24", label: "Job Match Score",     sub: "Know your fit before you apply" },
-        ].map(f => (
-          <div className="dash-feature-card" key={f.label}>
-            <div style={{ fontSize: 20, color: f.color, marginBottom: 8 }}>{f.icon}</div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: f.color }}>{f.label}</p>
-            <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{f.sub}</p>
+          <div className="min-w-0">
+            <p className="truncate text-[13.5px] font-semibold text-[#111827]">
+              {app.company}
+            </p>
+            <p className="truncate text-[12px] text-[#6B7280]">{app.role}</p>
           </div>
-        ))}
+        </div>
+        <button
+          onClick={() => deleteApp(app.id)}
+          className="shrink-0 rounded-md p-1 text-[#D1D5DB] opacity-0 transition-all hover:bg-[#FEF2F2] hover:text-[#DC2626] group-hover:opacity-100"
+          title="Remove"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div className="mt-3.5 flex items-center justify-between">
+        <span className="text-[11px] text-[#9CA3AF]">{date}</span>
+        <div className="relative">
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="rounded-full px-2.5 py-1 text-[11px] font-medium transition-transform active:scale-95"
+            style={{
+              color: STATUS_META[app.status].color,
+              background: STATUS_META[app.status].bg,
+              border: `1px solid ${STATUS_META[app.status].border}`,
+            }}
+          >
+            {STATUS_META[app.status].label}
+          </button>
+          {open && (
+            <div className="absolute right-0 z-20 mt-1.5 w-36 overflow-hidden rounded-lg border border-[#E5E7EB] bg-white py-1 shadow-lg animate-fade-up">
+              {STATUSES.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    updateStatus(app.id, s);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-[#374151] hover:bg-[#F8FAFC]"
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ background: STATUS_META[s].dot }}
+                  />
+                  {STATUS_META[s].label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
+function TrackerBoard({
+  tracker,
+}: {
+  tracker: ReturnType<typeof useTracker>;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <StatsCards stats={tracker.stats} />
+
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] sm:p-6">
+        <h2 className="mb-4 text-[14px] font-semibold text-[#111827]">
+          Add application
+        </h2>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            className="flex-1 rounded-lg border border-[#E5E7EB] bg-[#F8FAFC] px-3.5 py-2.5 text-[13.5px] text-[#111827] outline-none transition-colors placeholder:text-[#9CA3AF] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/10"
+            placeholder="Company name"
+            value={tracker.company}
+            onChange={(e) => tracker.setCompany(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && tracker.addApplication()}
+          />
+          <input
+            className="flex-1 rounded-lg border border-[#E5E7EB] bg-[#F8FAFC] px-3.5 py-2.5 text-[13.5px] text-[#111827] outline-none transition-colors placeholder:text-[#9CA3AF] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/10"
+            placeholder="Role / position"
+            value={tracker.role}
+            onChange={(e) => tracker.setRole(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && tracker.addApplication()}
+          />
+          <button
+            onClick={tracker.addApplication}
+            disabled={
+              tracker.submitting ||
+              !tracker.company.trim() ||
+              !tracker.role.trim()
+            }
+            className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#111827] px-4 py-2.5 text-[13.5px] font-medium text-white transition-all hover:bg-[#1F2937] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {tracker.submitting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Plus className="h-3.5 w-3.5" />
+            )}
+            Add
+          </button>
+        </div>
+      </div>
+
+      {tracker.loading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="h-40 rounded-2xl border border-[#E5E7EB] bg-white p-4"
+            >
+              <div className="h-full w-full animate-shimmer rounded-lg bg-gradient-to-r from-[#F3F4F6] via-[#E5E7EB] to-[#F3F4F6] bg-[length:200%_100%]" />
+            </div>
+          ))}
+        </div>
+      ) : tracker.apps.length === 0 ? (
+        <EmptyState
+          icon={Inbox}
+          title="No applications yet"
+          subtitle="Add your first application above to start tracking your pipeline."
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {STATUSES.map((status) => {
+            const apps = tracker.apps.filter((a) => a.status === status);
+            const meta = STATUS_META[status];
+            return (
+              <div key={status} className="flex flex-col gap-3 min-w-0">
+                <div className="flex items-center justify-between px-0.5">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ background: meta.dot }}
+                    />
+                    <span className="text-[12.5px] font-semibold text-[#111827]">
+                      {meta.label}
+                    </span>
+                  </div>
+                  <span className="rounded-full bg-[#F1F5F9] px-1.5 py-0.5 text-[10.5px] font-medium text-[#6B7280]">
+                    {apps.length}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2.5 rounded-2xl bg-[#F1F5F9]/60 p-2 min-h-[100px]">
+                  {apps.length === 0 ? (
+                    <div className="flex h-20 items-center justify-center rounded-xl border border-dashed border-[#E2E8F0] text-[11px] text-[#9CA3AF]">
+                      Empty
+                    </div>
+                  ) : (
+                    apps.map((app) => (
+                      <KanbanCard
+                        key={app.id}
+                        app={app}
+                        updateStatus={tracker.updateStatus}
+                        deleteApp={tracker.deleteApp}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
+  const steps = [
+    { n: 1, label: "Upload", done: studio.phase !== "idle" },
+    {
+      n: 2,
+      label: "Job description",
+      done: !!studio.jobDesc.trim() && studio.phase !== "idle",
+    },
+    { n: 3, label: "Analyze", done: studio.phase === "done" },
+  ];
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white p-4">
+        {steps.map((s, i) => (
+          <div key={s.n} className="flex flex-1 items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div
+                className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold transition-colors ${
+                  s.done
+                    ? "bg-[#111827] text-white"
+                    : "bg-[#F1F5F9] text-[#9CA3AF]"
+                }`}
+              >
+                {s.done ? <CheckCircle2 className="h-3.5 w-3.5" /> : s.n}
+              </div>
+              <span
+                className={`hidden text-[12px] font-medium sm:inline ${
+                  s.done ? "text-[#111827]" : "text-[#9CA3AF]"
+                }`}
+              >
+                {s.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div
+                className={`h-px flex-1 ${
+                  s.done ? "bg-[#111827]/30" : "bg-[#E5E7EB]"
+                }`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] sm:p-6">
+        <h2 className="mb-1 text-[14px] font-semibold text-[#111827]">
+          1 — Upload resume
+        </h2>
+        <p className="mb-4 text-[12.5px] text-[#6B7280]">
+          Text-based PDFs only. No scanned images.
+        </p>
+
+        <div
+          onClick={() => studio.fileInputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            studio.selectFile(e.dataTransfer.files[0] ?? null);
+          }}
+          className={`flex min-h-[130px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 ${
+            studio.resumeFile
+              ? "border-[#2563EB]/30 bg-[#EFF4FF]"
+              : "border-[#E5E7EB] hover:border-[#2563EB]/40 hover:bg-[#F8FAFC]"
+          }`}
+        >
+          <input
+            ref={studio.fileInputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={(e) => studio.selectFile(e.target.files?.[0] ?? null)}
+          />
+          {studio.resumeFile ? (
+            <div className="flex w-full items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
+                <FileText className="h-4.5 w-4.5" />
+              </div>
+              <div className="min-w-0 text-left">
+                <p className="truncate text-[13px] font-medium text-[#111827]">
+                  {studio.resumeFile.name}
+                </p>
+                <p className="text-[11.5px] text-[#6B7280]">
+                  {(studio.resumeFile.size / 1024).toFixed(1)} KB
+                </p>
+              </div>
+              <span className="ml-auto shrink-0 text-[11px] text-[#9CA3AF]">
+                Click to change
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-[#F1F5F9] text-[#6B7280]">
+                <UploadCloud className="h-4.5 w-4.5" />
+              </div>
+              <p className="text-[13px] font-medium text-[#374151]">
+                Drop your resume here, or click to browse
+              </p>
+              <p className="mt-1 text-[11.5px] text-[#9CA3AF]">PDF only</p>
+            </>
+          )}
+        </div>
+
+        <button
+          onClick={studio.uploadPDF}
+          disabled={!studio.resumeFile || studio.phase === "uploading"}
+          className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#111827] px-4 py-2.5 text-[13.5px] font-medium text-white transition-all hover:bg-[#1F2937] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {studio.phase === "uploading" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Extracting…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" /> Extract resume text
+            </>
+          )}
+        </button>
+
+        {(studio.phase === "extracted" ||
+          studio.phase === "generating" ||
+          studio.phase === "done") && (
+          <div className="mt-3.5 flex items-center gap-2 rounded-lg border border-[#CFF3DB] bg-[#F0FCF4] px-3.5 py-2.5 text-[12.5px] text-[#16A34A]">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span className="flex-1">
+              {studio.wordCount(studio.resumeText).toLocaleString()} words
+              extracted
+            </span>
+            <button
+              onClick={() => studio.setShowPreview((v) => !v)}
+              className="flex items-center gap-1 font-medium underline-offset-2 hover:underline"
+            >
+              {studio.showPreview ? (
+                <>
+                  <EyeOff className="h-3.5 w-3.5" /> Hide
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3.5 w-3.5" /> Preview
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {studio.showPreview && studio.resumeText && (
+          <pre className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-[#E5E7EB] bg-[#F8FAFC] p-3.5 text-[11.5px] leading-relaxed text-[#6B7280]">
+            {studio.resumeText.slice(0, 1500)}
+            {studio.resumeText.length > 1500 ? "\n\n… (truncated)" : ""}
+          </pre>
+        )}
+
+        {studio.error && studio.phase === "idle" && (
+          <div className="mt-3.5 flex items-center gap-2 rounded-lg border border-[#FBDADA] bg-[#FEF2F2] px-3.5 py-2.5 text-[12.5px] text-[#DC2626]">
+            <XCircle className="h-4 w-4 shrink-0" />
+            {studio.error}
+          </div>
+        )}
+      </div>
+
+      <div
+        className={`relative rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] sm:p-6 ${
+          studio.phase === "idle" ? "opacity-50" : ""
+        }`}
+      >
+        {studio.phase === "idle" && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/50 text-[12.5px] font-medium text-[#9CA3AF] backdrop-blur-[1px]">
+            Extract your resume first
+          </div>
+        )}
+        <h2 className="mb-3 text-[14px] font-semibold text-[#111827]">
+          2 — Paste job description
+        </h2>
+        <textarea
+          className="w-full resize-y rounded-lg border border-[#E5E7EB] bg-[#F8FAFC] px-3.5 py-3 text-[13px] leading-relaxed text-[#111827] outline-none transition-colors placeholder:text-[#9CA3AF] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/10 disabled:cursor-not-allowed"
+          placeholder="Paste the full job description here. More detail = better analysis."
+          value={studio.jobDesc}
+          onChange={(e) => studio.setJobDesc(e.target.value)}
+          disabled={studio.phase === "idle" || studio.phase === "uploading"}
+          rows={7}
+        />
+        <p className="mt-1.5 text-right text-[11px] text-[#9CA3AF]">
+          {studio.wordCount(studio.jobDesc).toLocaleString()} words
+        </p>
+      </div>
+
+      <div
+        className={`relative rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] sm:p-6 ${
+          studio.phase === "idle" || !studio.jobDesc.trim() ? "opacity-50" : ""
+        }`}
+      >
+        {(studio.phase === "idle" || !studio.jobDesc.trim()) && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/50 text-[12.5px] font-medium text-[#9CA3AF] backdrop-blur-[1px]">
+            Complete steps 1 &amp; 2 first
+          </div>
+        )}
+        <h2 className="mb-3 text-[14px] font-semibold text-[#111827]">
+          3 — Analyze resume
+        </h2>
+        <button
+          onClick={studio.analyzeResume}
+          disabled={
+            studio.phase === "idle" ||
+            !studio.jobDesc.trim() ||
+            studio.phase === "generating" ||
+            studio.phase === "uploading"
+          }
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-3 text-[13.5px] font-medium text-white shadow-sm transition-all hover:bg-[#1D4ED8] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {studio.phase === "generating" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Analyzing your
+              resume…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" /> Analyze against job description
+            </>
+          )}
+        </button>
+        {studio.phase === "generating" && (
+          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
+            <div className="h-full w-1/3 animate-progress rounded-full bg-[#2563EB]" />
+          </div>
+        )}
+        {studio.error &&
+          (studio.phase === "extracted" || studio.phase === "done") && (
+            <div className="mt-3.5 flex items-center gap-2 rounded-lg border border-[#FBDADA] bg-[#FEF2F2] px-3.5 py-2.5 text-[12.5px] text-[#DC2626]">
+              <XCircle className="h-4 w-4 shrink-0" />
+              {studio.error}
+            </div>
+          )}
+      </div>
+    </div>
+  );
+}
+
+function ResumePreview({ studio }: { studio: ReturnType<typeof useStudio> }) {
+  const { analysis } = studio;
+
+  if (!analysis) {
+    return (
+      <div className="sticky top-24 flex h-full min-h-[420px] flex-col rounded-2xl border border-[#E5E7EB] bg-white p-6">
+        <EmptyState
+          icon={FileText}
+          title="Your analysis will appear here"
+          subtitle="Upload a resume and paste a job description to get an ATS score, section feedback, and quick wins."
+        />
+      </div>
+    );
+  }
+
+  const statusStyle = (status: SectionFeedback["status"]) => {
+    if (status === "Good")
+      return { color: "#16A34A", bg: "#F0FCF4", border: "#CFF3DB" };
+    if (status === "Needs Work")
+      return { color: "#B45309", bg: "#FFF7EB", border: "#FCE8C6" };
+    return { color: "#DC2626", bg: "#FEF2F2", border: "#FBDADA" };
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 text-center shadow-[0_1px_2px_rgba(17,24,39,0.04)] animate-fade-up">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE7FE] bg-[#EFF4FF] px-3 py-1 text-[11.5px] font-medium text-[#2563EB]">
+          <KeyRound className="h-3 w-3" /> ATS Match Score
+        </span>
+        <div className="mt-4 text-[56px] font-semibold leading-none tracking-tight text-[#111827]">
+          {analysis.overallScore}
+          <span className="text-[22px] font-medium text-[#9CA3AF]">/100</span>
+        </div>
+        <div className="mx-auto mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-[#F1F5F9]">
+          <div
+            className="h-full rounded-full bg-[#2563EB] transition-all duration-700"
+            style={{ width: `${analysis.overallScore}%` }}
+          />
+        </div>
+        <p className="mx-auto mt-4 max-w-md text-[13px] leading-relaxed text-[#6B7280]">
+          {analysis.summary}
+        </p>
+        <button className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#111827] px-4 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-[#1F2937] active:scale-[0.98]">
+          <Download className="h-4 w-4" /> Download ATS-ready PDF
+        </button>
+      </div>
+
+      <div className="max-h-[560px] overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] sm:p-6">
+        <h2 className="mb-4 text-[14px] font-semibold text-[#111827]">
+          Section-by-section feedback
+        </h2>
+        <div className="flex flex-col gap-3">
+          {analysis.sections.map((sec) => {
+            const st = statusStyle(sec.status);
+            return (
+              <div
+                key={sec.name}
+                className="rounded-xl border border-[#E5E7EB] bg-[#F8FAFC]/60 p-4"
+              >
+                <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-[#111827]">
+                    {sec.name}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                      style={{
+                        color: st.color,
+                        background: st.bg,
+                        border: `1px solid ${st.border}`,
+                      }}
+                    >
+                      {sec.status}
+                    </span>
+                    <span className="text-[12.5px] font-semibold text-[#111827]">
+                      {sec.score}/100
+                    </span>
+                  </div>
+                </div>
+                <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-[#E5E7EB]">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${sec.score}%`, background: st.color }}
+                  />
+                </div>
+                <p className="mb-2.5 text-[12.5px] leading-relaxed text-[#6B7280]">
+                  {sec.feedback}
+                </p>
+                <ul className="flex flex-col gap-1.5">
+                  {sec.suggestions.map((s, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-[12px] text-[#374151]"
+                    >
+                      <ArrowRight className="mt-0.5 h-3 w-3 shrink-0 text-[#2563EB]" />
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
+          <h2 className="mb-3 text-[13.5px] font-semibold text-[#111827]">
+            Missing keywords
+          </h2>
+          <div className="flex flex-wrap gap-1.5">
+            {analysis.missingKeywords.map((kw) => (
+              <span
+                key={kw}
+                className="rounded-full border border-[#FBDADA] bg-[#FEF2F2] px-2.5 py-1 text-[11.5px] font-medium text-[#DC2626]"
+              >
+                {kw}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
+          <h2 className="mb-3 text-[13.5px] font-semibold text-[#111827]">
+            Quick wins
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {analysis.quickWins.map((win, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-2 text-[12px] leading-relaxed text-[#374151]"
+              >
+                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#16A34A]" />
+                {win}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="mt-16 border-t border-[#E5E7EB] py-8">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 text-[12.5px] text-[#9CA3AF] sm:flex-row">
+        <span>© {new Date().getFullYear()} ApplyOS. Your career companion.</span>
+        <span className="flex items-center gap-1.5">
+          Built with <Zap className="h-3 w-3 text-[#2563EB]" /> and intent.
+        </span>
+      </div>
+    </footer>
+  );
+}
+
+/* ============================================================
+   PAGE
+   ============================================================ */
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "tracker" | "studio">("dashboard");
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const tracker = useTracker();
   const studio = useStudio();
 
   return (
-    <>
-      <style>{globalStyles}</style>
-      <div className="layout">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} stats={tracker.stats} />
-        <div className="content-area">
-          <header className="topbar">
-            <div style={{ flex: 1 }} />
-            <button
-              className={`topbar-tab ${activeTab === "tracker" ? "topbar-tab-active" : ""}`}
-              onClick={() => setActiveTab("tracker")}
-            >📅 Job Tracker</button>
-            <button
-              className={`topbar-tab topbar-tab-accent ${activeTab === "studio" ? "topbar-tab-active-accent" : ""}`}
-              onClick={() => setActiveTab("studio")}
-            >✦ AI Studio</button>
-          </header>
+    <div className="min-h-screen bg-[#F8FAFC] antialiased">
+      <style>{`
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-up { animation: fadeUp 0.45s ease both; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .animate-shimmer { animation: shimmer 1.4s infinite; }
+        @keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+        .animate-progress { animation: progress 1.2s ease-in-out infinite; }
+      `}</style>
 
-          <main className="main">
+      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {activeTab === "dashboard" && (
-              <DashboardTab stats={tracker.stats} setActiveTab={setActiveTab} />
-            )}
+      {activeTab === "dashboard" && <Hero setActiveTab={setActiveTab} />}
 
-            {activeTab === "tracker" && (
-              <div className="tab-content">
-                <div>
-                  <h1 className="dash-title">Job Tracker</h1>
-                  <p className="dash-sub">Manage all your job applications in one place.</p>
+      <main className="mx-auto max-w-7xl px-6 pb-20 pt-6">
+        {activeTab === "dashboard" && (
+          <div className="flex flex-col gap-8">
+            <StatsCards stats={tracker.stats} />
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <div className="group rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-all hover:shadow-[0_8px_24px_rgba(17,24,39,0.08)]">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#EFF4FF] text-[#2563EB]">
+                  <KanbanSquare className="h-4.5 w-4.5" />
                 </div>
-                <div className="stats-row">
-                  {[
-                    { label: "Total Applied",  value: tracker.stats.total,      icon: "📤", color: "#93c5fd" },
-                    { label: "Interviews",     value: tracker.stats.interviews, icon: "📅", color: "#6ee7b7" },
-                    { label: "Offers",         value: tracker.stats.offers,     icon: "⭐", color: "#fde68a" },
-                    { label: "Response Rate",  value: `${tracker.stats.rate}%`, icon: "📈", color: "#a78bfa" },
-                  ].map(s => (
-                    <div className="stat-card" key={s.label}>
-                      <div className="stat-card-icon" style={{ background: `${s.color}18`, color: s.color }}>{s.icon}</div>
-                      <span className="stat-value" style={{ color: s.color }}>{s.value}</span>
-                      <span className="stat-label">{s.label}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="glass-card">
-                  <h2 className="card-title">Add Application</h2>
-                  <div className="add-form">
-                    <input className="input" placeholder="Company name" value={tracker.company}
-                      onChange={e => tracker.setCompany(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && tracker.addApplication()} />
-                    <input className="input" placeholder="Role / Position" value={tracker.role}
-                      onChange={e => tracker.setRole(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && tracker.addApplication()} />
-                    <button className="btn btn-primary" onClick={tracker.addApplication}
-                      disabled={tracker.submitting || !tracker.company.trim() || !tracker.role.trim()}>
-                      {tracker.submitting ? <><span className="spinner" /> Adding…</> : "+ Add"}
-                    </button>
-                  </div>
-                </div>
-                <div className="glass-card">
-                  <h2 className="card-title">Applications <span className="badge">{tracker.apps.length}</span></h2>
-                  {tracker.loading ? (
-                    <div className="skeleton-list">{[0, 1, 2].map(i => <div key={i} className="skeleton-row" />)}</div>
-                  ) : tracker.apps.length === 0 ? (
-                    <div className="empty">
-                      <p className="empty-icon">📭</p>
-                      <p className="empty-text">No applications yet. Add your first one above.</p>
-                    </div>
-                  ) : (
-                    <div className="app-list">
-                      {tracker.apps.map(app => {
-                        const meta = STATUS_META[app.status] ?? STATUS_META.applied;
-                        return (
-                          <div className="app-row" key={app.id}>
-                            <div className="app-info">
-                              <span className="app-company">{app.company}</span>
-                              <span className="app-role">{app.role}</span>
-                            </div>
-                            <div className="app-actions">
-                              <span className="status-pill"
-                                style={{ color: meta.color, background: meta.bg, border: `1px solid ${meta.color}30` }}>
-                                {meta.label}
-                              </span>
-                              <select className="status-select" value={app.status}
-                                onChange={e => tracker.updateStatus(app.id, e.target.value as Status)}>
-                                {STATUSES.map(s => (
-                                  <option key={s} value={s}>{STATUS_META[s].label}</option>
-                                ))}
-                              </select>
-                              <button className="btn-ghost-danger" onClick={() => tracker.deleteApp(app.id)} title="Remove">✕</button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                <h3 className="mb-1.5 text-[15px] font-semibold text-[#111827]">
+                  Job Tracker
+                </h3>
+                <p className="mb-5 text-[13px] leading-relaxed text-[#6B7280]">
+                  Manage every application on a Kanban board — from applied to
+                  offer.
+                </p>
+                <button
+                  onClick={() => setActiveTab("tracker")}
+                  className="group/btn inline-flex items-center gap-1.5 text-[13px] font-medium text-[#111827]"
+                >
+                  Open tracker
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-0.5" />
+                </button>
               </div>
-            )}
-
-            {activeTab === "studio" && (
-              <div className="tab-content">
-                <div className="studio-header-row">
-                  <div>
-                    <h1 className="dash-title">AI Resume Studio</h1>
-                    <p className="dash-sub">Upload your resume and match it against any job description.</p>
-                  </div>
-                  <span className="step-badge">
-                    Step {studio.phase === "idle" ? 1 : studio.phase === "extracted" ? 2 : 3} of 3
-                  </span>
+              <div className="group rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-all hover:shadow-[0_8px_24px_rgba(17,24,39,0.08)]">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#F5F0FE] text-[#7C3AED]">
+                  <Sparkles className="h-4.5 w-4.5" />
                 </div>
-
-                <div className="pipeline">
-                  {[
-                    { n: 1, label: "Upload Resume",       done: studio.phase !== "idle" },
-                    { n: 2, label: "Add Job Description", done: !!studio.jobDesc.trim() && studio.phase !== "idle" },
-                    { n: 3, label: "Get Analysis",        done: studio.phase === "done" },
-                  ].map((s, i, arr) => (
-                    <div className="pipeline-step" key={s.n}>
-                      <div className={`step-circle ${s.done ? "step-done" : ""}`}>{s.done ? "✓" : s.n}</div>
-                      <span className={`step-label ${s.done ? "step-label-done" : ""}`}>{s.label}</span>
-                      {i < arr.length - 1 && <div className={`step-line ${s.done ? "step-line-done" : ""}`} />}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="glass-card">
-                  <h2 className="card-title">1 — Upload Your Resume</h2>
-                  <div className={`dropzone ${studio.resumeFile ? "dropzone-has-file" : ""}`}
-                    onClick={() => studio.fileInputRef.current?.click()}
-                    onDragOver={e => e.preventDefault()}
-                    onDrop={e => { e.preventDefault(); studio.selectFile(e.dataTransfer.files[0] ?? null); }}>
-                    <input ref={studio.fileInputRef} type="file" accept="application/pdf"
-                      style={{ display: "none" }} onChange={e => studio.selectFile(e.target.files?.[0] ?? null)} />
-                    {studio.resumeFile ? (
-                      <div className="file-selected">
-                        <span className="file-icon">📄</span>
-                        <div>
-                          <p className="file-name">{studio.resumeFile.name}</p>
-                          <p className="file-size">{(studio.resumeFile.size / 1024).toFixed(1)} KB</p>
-                        </div>
-                        <span className="file-change">Click to change</span>
-                      </div>
-                    ) : (
-                      <div className="dropzone-prompt">
-                        <span className="dropzone-icon">⬆️</span>
-                        <p className="dropzone-text">Drop your PDF here, or click to browse</p>
-                        <p className="dropzone-sub">Text-based PDFs only · not scanned images</p>
-                      </div>
-                    )}
-                  </div>
-                  <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={studio.uploadPDF}
-                    disabled={!studio.resumeFile || studio.phase === "uploading"}>
-                    {studio.phase === "uploading" ? <><span className="spinner" /> Extracting…</> : "✦ Extract Resume Text"}
-                  </button>
-                  {(studio.phase === "extracted" || studio.phase === "generating" || studio.phase === "done") && (
-                    <div className="alert alert-success">
-                      ✅ {studio.wordCount(studio.resumeText).toLocaleString()} words extracted
-                      <button className="link-btn" onClick={() => studio.setShowPreview(v => !v)}>
-                        {studio.showPreview ? "Hide" : "Preview"}
-                      </button>
-                    </div>
-                  )}
-                  {studio.showPreview && studio.resumeText && (
-                    <pre className="text-preview">
-                      {studio.resumeText.slice(0, 1500)}{studio.resumeText.length > 1500 ? "\n\n… (truncated)" : ""}
-                    </pre>
-                  )}
-                  {studio.error && studio.phase === "idle" && (
-                    <div className="alert alert-error">❌ {studio.error}</div>
-                  )}
-                </div>
-
-                <div className={`glass-card ${studio.phase === "idle" ? "card-locked" : ""}`}>
-                  {studio.phase === "idle" && <div className="lock-overlay">Extract your resume first (Step 1)</div>}
-                  <h2 className="card-title">2 — Paste Job Description</h2>
-                  <textarea className="textarea"
-                    placeholder="Paste the full job description here. More detail = better analysis."
-                    value={studio.jobDesc} onChange={e => studio.setJobDesc(e.target.value)}
-                    disabled={studio.phase === "idle" || studio.phase === "uploading"} rows={8} />
-                  <div className="textarea-meta">{studio.wordCount(studio.jobDesc).toLocaleString()} words</div>
-                </div>
-
-                <div className={`glass-card ${studio.phase === "idle" || !studio.jobDesc.trim() ? "card-locked" : ""}`}>
-                  {(studio.phase === "idle" || !studio.jobDesc.trim()) && (
-                    <div className="lock-overlay">Complete Steps 1 & 2 first</div>
-                  )}
-                  <h2 className="card-title">3 — Analyze Resume</h2>
-                  <button className="btn btn-accent" style={{ width: "100%" }} onClick={studio.analyzeResume}
-                    disabled={studio.phase === "idle" || !studio.jobDesc.trim() || studio.phase === "generating" || studio.phase === "uploading"}>
-                    {studio.phase === "generating"
-                      ? <><span className="spinner" /> Analyzing your resume…</>
-                      : "🔍 Analyze Against Job Description"}
-                  </button>
-                  {studio.error && (studio.phase === "extracted" || studio.phase === "done") && (
-                    <div className="alert alert-error" style={{ marginTop: 12 }}>❌ {studio.error}</div>
-                  )}
-                </div>
-
-                {studio.analysis && (
-                  <>
-                    <div className="glass-card" style={{ textAlign: "center", padding: "32px 24px" }}>
-                      <div style={{
-                        fontSize: 64, fontWeight: 800, lineHeight: 1,
-                        background: "linear-gradient(135deg, #a78bfa, #38bdf8)",
-                        WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                      }}>{studio.analysis.overallScore}</div>
-                      <div style={{ fontSize: 12, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginTop: 6 }}>ATS Match Score / 100</div>
-                      <div style={{ height: 6, borderRadius: 99, background: "rgba(255,255,255,0.07)", margin: "16px auto 0", maxWidth: 320 }}>
-                        <div style={{
-                          height: "100%", borderRadius: 99, width: `${studio.analysis.overallScore}%`,
-                          background: "linear-gradient(90deg, #a78bfa, #38bdf8)", transition: "width 0.8s ease",
-                        }} />
-                      </div>
-                      <p style={{ fontSize: 13, color: "#94a3b8", maxWidth: 520, margin: "16px auto 0", lineHeight: 1.7 }}>
-                        {studio.analysis.summary}
-                      </p>
-                    </div>
-
-                    <div className="glass-card">
-                      <h2 className="card-title">📋 Section-by-Section Feedback</h2>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                        {studio.analysis.sections.map((sec) => {
-                          const statusColor = sec.status === "Good" ? "#6ee7b7" : sec.status === "Needs Work" ? "#fde68a" : "#fca5a5";
-                          const statusBg = sec.status === "Good" ? "rgba(16,185,129,0.12)" : sec.status === "Needs Work" ? "rgba(251,191,36,0.12)" : "rgba(239,68,68,0.12)";
-                          const statusBorder = sec.status === "Good" ? "rgba(16,185,129,0.3)" : sec.status === "Needs Work" ? "rgba(251,191,36,0.3)" : "rgba(239,68,68,0.3)";
-                          return (
-                            <div key={sec.name} style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", padding: "16px 18px", background: "rgba(255,255,255,0.02)" }}>
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-                                <span style={{ fontWeight: 700, fontSize: 14, color: "#e2e8f0" }}>{sec.name}</span>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: statusBg, color: statusColor, border: `1px solid ${statusBorder}` }}>{sec.status}</span>
-                                  <span style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa" }}>{sec.score}/100</span>
-                                </div>
-                              </div>
-                              <div style={{ height: 3, borderRadius: 99, background: "rgba(255,255,255,0.07)", marginBottom: 12 }}>
-                                <div style={{ height: "100%", borderRadius: 99, width: `${sec.score}%`, background: statusColor, transition: "width 0.6s ease" }} />
-                              </div>
-                              <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12, lineHeight: 1.65 }}>{sec.feedback}</p>
-                              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 7 }}>
-                                {sec.suggestions.map((s, i) => (
-                                  <li key={i} style={{ fontSize: 12, color: "#cbd5e1", display: "flex", gap: 8, alignItems: "flex-start" }}>
-                                    <span style={{ color: "#a78bfa", flexShrink: 0, marginTop: 1 }}>→</span>{s}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="two-col-grid">
-                      <div className="glass-card">
-                        <h2 className="card-title">🔑 Missing Keywords</h2>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                          {studio.analysis.missingKeywords.map(kw => (
-                            <span key={kw} style={{ fontSize: 12, padding: "4px 12px", borderRadius: 99, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5" }}>{kw}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="glass-card">
-                        <h2 className="card-title">⚡ Quick Wins</h2>
-                        <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
-                          {studio.analysis.quickWins.map((win, i) => (
-                            <li key={i} style={{ fontSize: 12, color: "#cbd5e1", display: "flex", gap: 8, alignItems: "flex-start", lineHeight: 1.6 }}>
-                              <span style={{ color: "#6ee7b7", flexShrink: 0, marginTop: 1 }}>✓</span>{win}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </>
-                )}
+                <h3 className="mb-1.5 text-[15px] font-semibold text-[#111827]">
+                  AI Resume Studio
+                </h3>
+                <p className="mb-5 text-[13px] leading-relaxed text-[#6B7280]">
+                  Get an ATS score, section feedback, and keyword gaps in
+                  seconds.
+                </p>
+                <button
+                  onClick={() => setActiveTab("studio")}
+                  className="group/btn inline-flex items-center gap-1.5 text-[13px] font-medium text-[#111827]"
+                >
+                  Open studio
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-0.5" />
+                </button>
               </div>
-            )}
-          </main>
-        </div>
-      </div>
-    </>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "tracker" && (
+          <div className="flex flex-col gap-6">
+            <div>
+              <h1 className="text-[26px] font-semibold tracking-tight text-[#111827]">
+                Job Tracker
+              </h1>
+              <p className="mt-1 text-[13.5px] text-[#6B7280]">
+                Manage all your job applications in one place.
+              </p>
+            </div>
+            <TrackerBoard tracker={tracker} />
+          </div>
+        )}
+
+        {activeTab === "studio" && (
+          <div className="flex flex-col gap-6">
+            <div>
+              <h1 className="text-[26px] font-semibold tracking-tight text-[#111827]">
+                AI Resume Studio
+              </h1>
+              <p className="mt-1 text-[13.5px] text-[#6B7280]">
+                Upload your resume and match it against any job description.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <ResumeUploader studio={studio} />
+              <ResumePreview studio={studio} />
+            </div>
+          </div>
+        )}
+      </main>
+
+      <Footer />
+    </div>
   );
 }
-
-const globalStyles = `
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #07080f; color: #e2e8f0; font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; min-height: 100vh; }
-  .layout { display: flex; min-height: 100vh; }
-  .content-area { flex: 1; display: flex; flex-direction: column; min-width: 0; background: radial-gradient(ellipse 80% 60% at 60% -10%, rgba(99,102,241,0.12) 0%, transparent 70%), #07080f; }
-
-  .sidebar { width: 240px; flex-shrink: 0; background: rgba(7,8,15,0.95); border-right: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; padding: 0 12px 24px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-  .sidebar-logo { display: flex; align-items: center; gap: 8px; padding: 20px 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 12px; }
-  .sidebar-logo-icon { font-size: 20px; }
-  .sidebar-logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; background: linear-gradient(135deg, #a78bfa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; margin-bottom: 24px; }
-  .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 9px; border: none; background: transparent; color: #64748b; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; text-align: left; width: 100%; }
-  .sidebar-item:hover { background: rgba(255,255,255,0.05); color: #94a3b8; }
-  .sidebar-item-active { background: rgba(99,102,241,0.15) !important; color: #a78bfa !important; }
-  .sidebar-item-icon { font-size: 16px; width: 20px; text-align: center; }
-  .sidebar-item-label { flex: 1; }
-  .sidebar-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; background: rgba(167,139,250,0.2); color: #a78bfa; border-radius: 99px; }
-  .sidebar-stats { margin-bottom: 20px; }
-  .sidebar-stats-title { font-size: 10px; font-weight: 700; color: #334155; letter-spacing: 1px; text-transform: uppercase; padding: 0 4px; margin-bottom: 10px; }
-  .sidebar-stat { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-radius: 8px; transition: background 0.12s; }
-  .sidebar-stat:hover { background: rgba(255,255,255,0.03); }
-  .sidebar-stat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-  .sidebar-stat-value { font-size: 15px; font-weight: 700; color: #e2e8f0; }
-  .sidebar-stat-label { font-size: 11px; color: #475569; }
-  .sidebar-footer { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-top: 1px solid rgba(255,255,255,0.05); }
-  .sidebar-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
-  .sidebar-footer-name { font-size: 13px; font-weight: 600; color: #e2e8f0; }
-  .sidebar-footer-sub { font-size: 11px; color: #475569; }
-
-  .topbar { display: flex; align-items: center; gap: 8px; padding: 12px 28px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(7,8,15,0.6); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; }
-  .topbar-tab { padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #64748b; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
-  .topbar-tab:hover { color: #94a3b8; background: rgba(255,255,255,0.07); }
-  .topbar-tab-active { color: #a78bfa !important; border-color: rgba(167,139,250,0.3) !important; background: rgba(99,102,241,0.1) !important; }
-  .topbar-tab-accent { background: linear-gradient(135deg, #6366f1, #8b5cf6) !important; border-color: transparent !important; color: #fff !important; }
-  .topbar-tab-active-accent { opacity: 0.85; }
-
-  .main { padding: 28px 28px 80px; }
-  .tab-content { display: flex; flex-direction: column; gap: 20px; }
-  .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-
-  .dash-hero { margin-bottom: 4px; }
-  .dash-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; background: linear-gradient(135deg, #a78bfa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .dash-sub { font-size: 13px; color: #64748b; max-width: 560px; }
-
-  .dash-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .dash-stat-card { display: flex; flex-direction: column; align-items: flex-start; padding: 18px 16px; gap: 4px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; transition: background 0.15s; }
-  .dash-stat-card:hover { background: rgba(255,255,255,0.05); }
-  .dash-stat-icon { width: 36px; height: 36px; border-radius: 9px; font-size: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
-  .dash-stat-value { font-size: 26px; font-weight: 800; line-height: 1; }
-  .dash-stat-label { font-size: 13px; font-weight: 600; color: #94a3b8; margin-top: 2px; }
-  .dash-stat-sub { font-size: 11px; color: #475569; }
-
-  .dash-cta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .dash-cta-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
-  .dash-cta-icon { width: 44px; height: 44px; border-radius: 12px; font-size: 20px; display: flex; align-items: center; justify-content: center; }
-  .dash-cta-title { font-size: 16px; font-weight: 700; color: #e2e8f0; }
-  .dash-cta-desc { font-size: 13px; color: #64748b; line-height: 1.6; flex: 1; }
-
-  .dash-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .dash-feature-card { padding: 18px 16px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; transition: background 0.15s; }
-  .dash-feature-card:hover { background: rgba(255,255,255,0.04); }
-
-  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .stat-card { display: flex; flex-direction: column; align-items: flex-start; padding: 18px 16px; gap: 2px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; }
-  .stat-card-icon { width: 34px; height: 34px; border-radius: 9px; font-size: 15px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
-  .stat-value { font-size: 24px; font-weight: 800; line-height: 1; }
-  .stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-
-  .glass-card { position: relative; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 24px; overflow: hidden; }
-  .glass-card::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(135deg, rgba(167,139,250,0.04) 0%, transparent 60%); pointer-events: none; }
-  .card-locked { opacity: 0.5; pointer-events: none; }
-  .lock-overlay { position: absolute; inset: 0; z-index: 5; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: rgba(7,8,15,0.45); font-size: 13px; color: #64748b; backdrop-filter: blur(2px); }
-  .card-title { font-size: 15px; font-weight: 600; color: #e2e8f0; margin-bottom: 16px; }
-
-  .add-form { display: flex; gap: 10px; flex-wrap: wrap; }
-  .input { flex: 1; min-width: 160px; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; color: #e2e8f0; font-size: 14px; outline: none; transition: border-color 0.15s; }
-  .input:focus { border-color: rgba(167,139,250,0.5); }
-  .input::placeholder { color: #475569; }
-
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
-  .btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
-  .btn-primary:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); }
-  .btn-accent { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #fff; padding: 13px 20px; }
-  .btn-accent:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); }
-  .btn-ghost-danger { background: transparent; border: none; color: #475569; font-size: 13px; cursor: pointer; padding: 4px 8px; border-radius: 5px; transition: all 0.15s; }
-  .btn-ghost-danger:hover { color: #f87171; background: rgba(248,113,113,0.1); }
-  .link-btn { margin-left: auto; background: transparent; border: none; color: #6ee7b7; font-size: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
-
-  .badge { display: inline-block; padding: 1px 8px; background: rgba(167,139,250,0.15); color: #a78bfa; border-radius: 99px; font-size: 11px; font-weight: 600; margin-left: 6px; }
-
-  .app-list { display: flex; flex-direction: column; gap: 8px; }
-  .app-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 9px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.05); transition: background 0.12s; gap: 12px; flex-wrap: wrap; }
-  .app-row:hover { background: rgba(255,255,255,0.045); }
-  .app-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .app-company { font-size: 14px; font-weight: 600; color: #e2e8f0; }
-  .app-role { font-size: 12px; color: #64748b; }
-  .app-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  .status-pill { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
-  .status-select { padding: 5px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); color: #e2e8f0; font-size: 12px; cursor: pointer; outline: none; }
-
-  .skeleton-list { display: flex; flex-direction: column; gap: 8px; }
-  .skeleton-row { height: 56px; border-radius: 9px; background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
-  @keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
-
-  .empty { text-align: center; padding: 36px 0; }
-  .empty-icon { font-size: 32px; margin-bottom: 8px; }
-  .empty-text { color: #475569; font-size: 13px; }
-
-  .step-badge { font-size: 12px; font-weight: 600; padding: 5px 12px; background: rgba(167,139,250,0.15); color: #a78bfa; border-radius: 99px; border: 1px solid rgba(167,139,250,0.25); white-space: nowrap; }
-  .studio-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-
-  .pipeline { display: flex; align-items: flex-start; gap: 0; padding: 0 4px; }
-  .pipeline-step { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; gap: 8px; }
-  .step-line { position: absolute; top: 14px; left: 50%; width: 100%; height: 1px; background: rgba(255,255,255,0.07); z-index: 0; transition: background 0.3s; }
-  .step-line-done { background: rgba(167,139,250,0.35); }
-  .step-circle { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; z-index: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #64748b; transition: all 0.25s; }
-  .step-done { background: rgba(99,102,241,0.25) !important; border-color: rgba(167,139,250,0.55) !important; color: #a78bfa !important; }
-  .step-label { font-size: 11px; color: #475569; text-align: center; }
-  .step-label-done { color: #94a3b8; }
-
-  .dropzone { padding: 28px; border-radius: 10px; border: 1.5px dashed rgba(255,255,255,0.1); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; min-height: 110px; }
-  .dropzone:hover { border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.04); }
-  .dropzone-has-file { border-color: rgba(110,231,183,0.3); background: rgba(110,231,183,0.03); }
-  .dropzone-prompt { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
-  .dropzone-icon { font-size: 28px; }
-  .dropzone-text { font-size: 13px; color: #94a3b8; }
-  .dropzone-sub { font-size: 11px; color: #475569; }
-  .file-selected { display: flex; align-items: center; gap: 12px; width: 100%; }
-  .file-icon { font-size: 24px; flex-shrink: 0; }
-  .file-name { font-size: 13px; font-weight: 600; color: #a78bfa; }
-  .file-size { font-size: 11px; color: #64748b; margin-top: 2px; }
-  .file-change { margin-left: auto; font-size: 11px; color: #475569; flex-shrink: 0; }
-
-  .alert { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; }
-  .alert-success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); color: #6ee7b7; }
-  .alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; }
-
-  .text-preview { margin-top: 12px; padding: 14px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); font-size: 11.5px; line-height: 1.7; color: #94a3b8; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; }
-
-  .textarea { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: #e2e8f0; font-size: 13px; line-height: 1.6; resize: vertical; outline: none; font-family: inherit; transition: border-color 0.15s; }
-  .textarea:focus { border-color: rgba(99,102,241,0.5); }
-  .textarea::placeholder { color: #475569; }
-  .textarea:disabled { opacity: 0.5; cursor: not-allowed; }
-  .textarea-meta { font-size: 11px; color: #475569; margin-top: 6px; text-align: right; }
-
-  .spinner { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); border-top-color: #fff; animation: spin 0.7s linear infinite; display: inline-block; flex-shrink: 0; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
-
-  @media (max-width: 900px) { .sidebar { width: 200px; } .dash-stats { grid-template-columns: repeat(2, 1fr); } .dash-cta-grid { grid-template-columns: 1fr; } .dash-features { grid-template-columns: 1fr; } }
-  @media (max-width: 640px) { .sidebar { display: none; } .stats-row { grid-template-columns: repeat(2, 1fr); } .two-col-grid { grid-template-columns: 1fr; } .add-form { flex-direction: column; } .dash-stats { grid-template-columns: repeat(2, 1fr); } }
-`;

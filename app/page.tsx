@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Transition, TargetAndTransition } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import {
   Command,
@@ -41,7 +42,11 @@ import {
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-function fadeUp(delay = 0) {
+function fadeUp(delay = 0): {
+  initial: TargetAndTransition;
+  animate: TargetAndTransition;
+  transition: Transition;
+} {
   return {
     initial: { opacity: 0, y: 14 },
     animate: { opacity: 1, y: 0 },

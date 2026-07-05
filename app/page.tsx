@@ -31,7 +31,23 @@ import {
   Shield,
   Gauge,
   Wand2,
+  Sun,
+  Moon,
 } from "lucide-react";
+
+/* ============================================================
+   EASE — typed tuple (fixes framer-motion TS build error)
+   ============================================================ */
+
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+function fadeUp(delay = 0) {
+  return {
+    initial: { opacity: 0, y: 14 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5, delay, ease: EASE },
+  };
+}
 
 /* ============================================================
    TYPES  (unchanged)
@@ -65,57 +81,32 @@ interface AnalysisResult {
   quickWins: string[];
 }
 
+type Theme = "light" | "dark";
+
 /* ============================================================
-   STATUS META — same keys, monochrome palette + tiny accents
+   STATUS META — colors only; bg/border derived via alpha
+   (works automatically in both light & dark themes)
    ============================================================ */
 
-type StatusMeta = {
-  label: string;
-  color: string;
-  bg: string;
-  border: string;
-  dot: string;
-};
+type StatusMeta = { label: string; color: string };
 
 const STATUS_META: Record<Status, StatusMeta> = {
-  applied: {
-    label: "Applied",
-    color: "#2563EB",
-    bg: "#F5F8FF",
-    border: "#E2E8F5",
-    dot: "#2563EB",
-  },
-  oa: {
-    label: "OA",
-    color: "#111111",
-    bg: "#F4F4F5",
-    border: "#E4E4E7",
-    dot: "#52525B",
-  },
-  interview: {
-    label: "Interview",
-    color: "#92400E",
-    bg: "#FBF8F3",
-    border: "#EDE6DA",
-    dot: "#B45309",
-  },
-  rejected: {
-    label: "Rejected",
-    color: "#7A7A7A",
-    bg: "#FAFAFA",
-    border: "#E5E5E5",
-    dot: "#A1A1AA",
-  },
-  offer: {
-    label: "Offer",
-    color: "#065F46",
-    bg: "#F2FAF6",
-    border: "#DDEFE5",
-    dot: "#16A34A",
-  },
+  applied: { label: "Applied", color: "#2563EB" },
+  oa: { label: "OA", color: "#71717A" },
+  interview: { label: "Interview", color: "#D97706" },
+  rejected: { label: "Rejected", color: "#DC2626" },
+  offer: { label: "Offer", color: "#16A34A" },
 };
 
 const STATUSES = Object.keys(STATUS_META) as Status[];
+
+function pillStyle(color: string) {
+  return {
+    color,
+    background: `${color}1A`,
+    border: `1px solid ${color}33`,
+  };
+}
 
 /* ============================================================
    HOOKS  (business logic — UNCHANGED)
@@ -345,18 +336,75 @@ Return this exact JSON structure:
 }
 
 /* ============================================================
+   THEME HOOK
+   ============================================================ */
+
+function useTheme() {
+  const [theme, setTheme] = useState<Theme>("light");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem("applyos-theme") as Theme | null;
+    if (stored === "light" || stored === "dark") {
+      setTheme(stored);
+    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      setTheme("dark");
+    }
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    window.localStorage.setItem("applyos-theme", theme);
+  }, [theme, mounted]);
+
+  const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
+
+  return { theme, toggleTheme };
+}
+
+/* ============================================================
+   THEME TOGGLE BUTTON
+   ============================================================ */
+
+function ThemeToggle({
+  theme,
+  toggleTheme,
+}: {
+  theme: Theme;
+  toggleTheme: () => void;
+}) {
+  return (
+    <button
+      onClick={toggleTheme}
+      aria-label="Toggle theme"
+      className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--subtle-2)] hover:text-[var(--text)]"
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={theme}
+          initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
+          animate={{ opacity: 1, rotate: 0, scale: 1 }}
+          exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
+          transition={{ duration: 0.25 }}
+          className="flex items-center justify-center"
+        >
+          {theme === "light" ? (
+            <Moon className="h-4 w-4" strokeWidth={2} />
+          ) : (
+            <Sun className="h-4 w-4" strokeWidth={2} />
+          )}
+        </motion.span>
+      </AnimatePresence>
+    </button>
+  );
+}
+
+/* ============================================================
    SHARED / REUSABLE UI PRIMITIVES
    ============================================================ */
 
 type Tab = "dashboard" | "tracker" | "studio";
-
-function fadeUp(delay = 0) {
-  return {
-    initial: { opacity: 0, y: 14 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] },
-  };
-}
 
 function IconBadge({
   icon: Icon,
@@ -365,14 +413,27 @@ function IconBadge({
   icon: typeof Sparkles;
   tone?: "neutral" | "blue" | "dark";
 }) {
-  const tones: Record<string, string> = {
-    neutral: "bg-[#F4F4F5] text-[#3F3F46] border border-[#E4E4E7]",
-    blue: "bg-[#EFF4FF] text-[#2563EB] border border-[#DCE7FE]",
-    dark: "bg-[#111111] text-white border border-[#111111]",
+  const tones: Record<string, React.CSSProperties> = {
+    neutral: {
+      background: "var(--subtle-2)",
+      color: "var(--text-2)",
+      border: "1px solid var(--border-strong)",
+    },
+    blue: {
+      background: "var(--accent-bg)",
+      color: "var(--accent)",
+      border: "1px solid var(--accent-border)",
+    },
+    dark: {
+      background: "var(--btn-bg)",
+      color: "var(--btn-text)",
+      border: "1px solid var(--btn-bg)",
+    },
   };
   return (
     <div
-      className={`flex h-10 w-10 items-center justify-center rounded-[10px] ${tones[tone]}`}
+      className="flex h-10 w-10 items-center justify-center rounded-[10px]"
+      style={tones[tone]}
     >
       <Icon className="h-4.5 w-4.5" strokeWidth={2} />
     </div>
@@ -386,9 +447,13 @@ function IconBadge({
 function Navbar({
   activeTab,
   setActiveTab,
+  theme,
+  toggleTheme,
 }: {
   activeTab: Tab;
   setActiveTab: (t: Tab) => void;
+  theme: Theme;
+  toggleTheme: () => void;
 }) {
   const items: { id: Tab; label: string; icon: typeof LayoutGrid }[] = [
     { id: "dashboard", label: "Overview", icon: LayoutGrid },
@@ -401,19 +466,33 @@ function Navbar({
       <motion.header
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="flex w-full max-w-6xl items-center justify-between gap-4 rounded-2xl border border-[#EAEAEA]/80 bg-white/70 px-4 py-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur-xl"
+        transition={{ duration: 0.5, ease: EASE }}
+        className="flex w-full max-w-6xl items-center justify-between gap-4 rounded-2xl border px-4 py-2.5 shadow-[0_8px_30px_var(--shadow-sm)] backdrop-blur-xl"
+        style={{
+          borderColor: "var(--border)",
+          background: "var(--nav-bg)",
+        }}
       >
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#111111]">
-            <Command className="h-4 w-4 text-white" strokeWidth={2.25} />
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-[9px]"
+            style={{ background: "var(--btn-bg)" }}
+          >
+            <Command
+              className="h-4 w-4"
+              style={{ color: "var(--btn-text)" }}
+              strokeWidth={2.25}
+            />
           </div>
-          <span className="text-[14.5px] font-semibold tracking-tight text-[#111111]">
+          <span className="text-[14.5px] font-semibold tracking-tight text-[var(--text)]">
             ApplyOS
           </span>
         </div>
 
-        <nav className="hidden items-center gap-0.5 rounded-full bg-[#F4F4F5]/80 p-1 sm:flex">
+        <nav
+          className="hidden items-center gap-0.5 rounded-full p-1 sm:flex"
+          style={{ background: "var(--subtle-2)" }}
+        >
           {items.map((item) => {
             const Icon = item.icon;
             const active = activeTab === item.id;
@@ -426,16 +505,14 @@ function Navbar({
                 {active && (
                   <motion.div
                     layoutId="nav-pill"
-                    className="absolute inset-0 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                    className="absolute inset-0 rounded-full shadow-[0_1px_3px_var(--shadow-sm)]"
+                    style={{ background: "var(--card)" }}
                     transition={{ type: "spring", stiffness: 400, damping: 32 }}
                   />
                 )}
                 <span
-                  className={`relative z-10 flex items-center gap-1.5 ${
-                    active
-                      ? "text-[#111111]"
-                      : "text-[#71717A] hover:text-[#111111]"
-                  }`}
+                  className="relative z-10 flex items-center gap-1.5"
+                  style={{ color: active ? "var(--text)" : "var(--muted)" }}
                 >
                   <Icon className="h-3.5 w-3.5" strokeWidth={2.1} />
                   {item.label}
@@ -446,17 +523,26 @@ function Navbar({
         </nav>
 
         <div className="flex items-center gap-1.5">
-          <button className="hidden h-8 w-8 items-center justify-center rounded-full text-[#71717A] transition-colors hover:bg-[#F4F4F5] hover:text-[#111111] sm:flex">
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+          <button
+            className="hidden h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:bg-[var(--subtle-2)] hover:text-[var(--text)] sm:flex"
+          >
             <Bell className="h-4 w-4" strokeWidth={2} />
           </button>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#111111] text-[11.5px] font-semibold text-white">
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[11.5px] font-semibold"
+            style={{ background: "var(--btn-bg)", color: "var(--btn-text)" }}
+          >
             A
           </div>
         </div>
       </motion.header>
 
       {/* mobile tabs */}
-      <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 gap-1 rounded-full border border-[#EAEAEA] bg-white/90 p-1 shadow-lg backdrop-blur-xl sm:hidden">
+      <div
+        className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 gap-1 rounded-full border p-1 shadow-lg backdrop-blur-xl sm:hidden"
+        style={{ borderColor: "var(--border)", background: "var(--nav-bg)" }}
+      >
         {items.map((item) => {
           const Icon = item.icon;
           const active = activeTab === item.id;
@@ -464,9 +550,11 @@ function Navbar({
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-[12px] font-medium transition-colors ${
-                active ? "bg-[#111111] text-white" : "text-[#71717A]"
-              }`}
+              className="flex items-center gap-1.5 rounded-full px-3 py-2 text-[12px] font-medium transition-colors"
+              style={{
+                background: active ? "var(--btn-bg)" : "transparent",
+                color: active ? "var(--btn-text)" : "var(--muted)",
+              }}
             >
               <Icon className="h-3.5 w-3.5" />
               {item.label}
@@ -487,39 +575,67 @@ function HeroMockup({ stats }: { stats: { rate: number } }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.96, y: 10 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.7, delay: 0.15, ease: EASE }}
       className="relative mx-auto w-full max-w-md"
     >
       {/* ambient glow */}
-      <div className="absolute -inset-10 -z-10 rounded-full bg-gradient-to-br from-[#2563EB]/10 via-transparent to-transparent blur-3xl" />
+      <div
+        className="absolute -inset-10 -z-10 rounded-full blur-3xl"
+        style={{ background: "var(--glow)" }}
+      />
 
       {/* back card: kanban sliver */}
       <motion.div
         initial={{ opacity: 0, x: 24, rotate: 4 }}
         animate={{ opacity: 1, x: 0, rotate: 4 }}
         transition={{ duration: 0.7, delay: 0.25 }}
-        className="absolute -right-6 top-10 w-56 rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-[0_20px_45px_rgba(0,0,0,0.08)]"
+        className="absolute -right-6 top-10 w-56 rounded-2xl border p-4 shadow-[0_20px_45px_var(--shadow-md)]"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
       >
-        <p className="mb-3 text-[11px] font-medium text-[#A1A1AA]">Interview</p>
+        <p className="mb-3 text-[11px] font-medium text-[var(--muted-2)]">
+          Interview
+        </p>
         <div className="space-y-2">
-          <div className="rounded-lg border border-[#F0F0F0] bg-[#FAFAFA] p-2.5">
-            <p className="text-[11.5px] font-semibold text-[#111111]">Stripe</p>
-            <p className="text-[10.5px] text-[#A1A1AA]">Product Designer</p>
+          <div
+            className="rounded-lg border p-2.5"
+            style={{ borderColor: "var(--border)", background: "var(--subtle)" }}
+          >
+            <p className="text-[11.5px] font-semibold text-[var(--text)]">
+              Stripe
+            </p>
+            <p className="text-[10.5px] text-[var(--muted-2)]">
+              Product Designer
+            </p>
           </div>
-          <div className="rounded-lg border border-[#F0F0F0] bg-[#FAFAFA] p-2.5 opacity-70">
-            <p className="text-[11.5px] font-semibold text-[#111111]">Linear</p>
-            <p className="text-[10.5px] text-[#A1A1AA]">Frontend Eng.</p>
+          <div
+            className="rounded-lg border p-2.5 opacity-70"
+            style={{ borderColor: "var(--border)", background: "var(--subtle)" }}
+          >
+            <p className="text-[11.5px] font-semibold text-[var(--text)]">
+              Linear
+            </p>
+            <p className="text-[10.5px] text-[var(--muted-2)]">Frontend Eng.</p>
           </div>
         </div>
       </motion.div>
 
       {/* main card: ATS score */}
-      <div className="relative rounded-[22px] border border-[#ECECEC] bg-white p-6 shadow-[0_30px_60px_rgba(0,0,0,0.09)]">
+      <div
+        className="relative rounded-[22px] border p-6 shadow-[0_30px_60px_var(--shadow-lg)]"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
         <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE7FE] bg-[#EFF4FF] px-2.5 py-1 text-[10.5px] font-medium text-[#2563EB]">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10.5px] font-medium"
+            style={{
+              borderColor: "var(--accent-border)",
+              background: "var(--accent-bg)",
+              color: "var(--accent)",
+            }}
+          >
             <Sparkles className="h-3 w-3" /> AI Analysis
           </span>
-          <span className="text-[10.5px] text-[#A1A1AA]">Live</span>
+          <span className="text-[10.5px] text-[var(--muted-2)]">Live</span>
         </div>
 
         <div className="mt-6 flex items-end gap-3">
@@ -527,21 +643,25 @@ function HeroMockup({ stats }: { stats: { rate: number } }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6, duration: 0.4 }}
-            className="text-[54px] font-semibold leading-none tracking-tight text-[#111111]"
+            className="text-[54px] font-semibold leading-none tracking-tight text-[var(--text)]"
           >
             94
           </motion.span>
-          <span className="mb-1.5 text-[13px] font-medium text-[#A1A1AA]">
+          <span className="mb-1.5 text-[13px] font-medium text-[var(--muted-2)]">
             / 100 ATS score
           </span>
         </div>
 
-        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-[#F0F0F0]">
+        <div
+          className="mt-4 h-1.5 w-full overflow-hidden rounded-full"
+          style={{ background: "var(--subtle-2)" }}
+        >
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: "94%" }}
-            transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="h-full rounded-full bg-[#111111]"
+            transition={{ duration: 1, delay: 0.5, ease: EASE }}
+            className="h-full rounded-full"
+            style={{ background: "var(--btn-bg)" }}
           />
         </div>
 
@@ -552,14 +672,15 @@ function HeroMockup({ stats }: { stats: { rate: number } }) {
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-xl border border-[#F0F0F0] bg-[#FAFAFA] p-3"
+              className="rounded-xl border p-3"
+              style={{ borderColor: "var(--border)", background: "var(--subtle)" }}
             >
-              <p className="text-[10.5px] font-medium text-[#A1A1AA]">
+              <p className="text-[10.5px] font-medium text-[var(--muted-2)]">
                 {s.label}
               </p>
-              <p className="mt-0.5 text-[15px] font-semibold text-[#111111]">
+              <p className="mt-0.5 text-[15px] font-semibold text-[var(--text)]">
                 {s.v}
-                <span className="text-[11px] font-medium text-[#A1A1AA]">
+                <span className="text-[11px] font-medium text-[var(--muted-2)]">
                   /100
                 </span>
               </p>
@@ -567,9 +688,18 @@ function HeroMockup({ stats }: { stats: { rate: number } }) {
           ))}
         </div>
 
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-[#DDEFE5] bg-[#F2FAF6] px-3 py-2.5">
-          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#16A34A]" />
-          <p className="text-[11.5px] text-[#065F46]">
+        <div
+          className="mt-4 flex items-center gap-2 rounded-xl border px-3 py-2.5"
+          style={{
+            borderColor: "var(--success-border)",
+            background: "var(--success-bg)",
+          }}
+        >
+          <CheckCircle2
+            className="h-3.5 w-3.5 shrink-0"
+            style={{ color: "var(--success)" }}
+          />
+          <p className="text-[11.5px]" style={{ color: "var(--success-text)" }}>
             Strong keyword match — 3 quick wins found
           </p>
         </div>
@@ -580,13 +710,16 @@ function HeroMockup({ stats }: { stats: { rate: number } }) {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4 }}
-        className="absolute -left-8 -top-6 flex items-center gap-2 rounded-full border border-[#ECECEC] bg-white px-3.5 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.07)]"
+        className="absolute -left-8 -top-6 flex items-center gap-2 rounded-full border px-3.5 py-2 shadow-[0_10px_30px_var(--shadow-md)]"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
       >
-        <TrendingUp className="h-3.5 w-3.5 text-[#2563EB]" />
-        <span className="text-[11.5px] font-semibold text-[#111111]">
+        <TrendingUp className="h-3.5 w-3.5" style={{ color: "var(--accent)" }} />
+        <span className="text-[11.5px] font-semibold text-[var(--text)]">
           {stats.rate}%
         </span>
-        <span className="text-[10.5px] text-[#A1A1AA]">response rate</span>
+        <span className="text-[10.5px] text-[var(--muted-2)]">
+          response rate
+        </span>
       </motion.div>
     </motion.div>
   );
@@ -610,15 +743,23 @@ function Hero({
       <div>
         <motion.span
           {...fadeUp(0)}
-          className="inline-flex items-center gap-1.5 rounded-full border border-[#EAEAEA] bg-white px-3 py-1 text-[12px] font-medium text-[#71717A] shadow-sm"
+          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium shadow-sm"
+          style={{
+            borderColor: "var(--border)",
+            background: "var(--card)",
+            color: "var(--muted)",
+          }}
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ background: "var(--accent)" }}
+          />
           The operating system for job seekers
         </motion.span>
 
         <motion.h1
           {...fadeUp(0.08)}
-          className="mt-6 text-[38px] font-semibold leading-[1.06] tracking-[-0.02em] text-[#111111] sm:text-[52px]"
+          className="mt-6 text-[38px] font-semibold leading-[1.06] tracking-[-0.02em] text-[var(--text)] sm:text-[52px]"
         >
           Every application,
           <br />
@@ -627,7 +768,7 @@ function Hero({
 
         <motion.p
           {...fadeUp(0.16)}
-          className="mt-5 max-w-md text-[16px] leading-relaxed text-[#71717A]"
+          className="mt-5 max-w-md text-[16px] leading-relaxed text-[var(--muted)]"
         >
           ApplyOS scores your resume against any job description, tells you
           exactly what to fix, and keeps every application organized in one
@@ -637,7 +778,8 @@ function Hero({
         <motion.div {...fadeUp(0.24)} className="mt-8 flex flex-wrap gap-3">
           <button
             onClick={() => setActiveTab("studio")}
-            className="group inline-flex items-center gap-2 rounded-xl bg-[#111111] px-5 py-3 text-[13.5px] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)] transition-all hover:bg-[#262626] active:scale-[0.98]"
+            className="group inline-flex items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-medium shadow-sm transition-all active:scale-[0.98]"
+            style={{ background: "var(--btn-bg)", color: "var(--btn-text)" }}
           >
             <Sparkles className="h-4 w-4" />
             Analyze my resume
@@ -645,7 +787,12 @@ function Hero({
           </button>
           <button
             onClick={() => setActiveTab("tracker")}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#EAEAEA] bg-white px-5 py-3 text-[13.5px] font-medium text-[#111111] transition-all hover:border-[#D4D4D8] hover:bg-[#FAFAFA] active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl border px-5 py-3 text-[13.5px] font-medium transition-all active:scale-[0.98]"
+            style={{
+              borderColor: "var(--border)",
+              background: "var(--card)",
+              color: "var(--text)",
+            }}
           >
             <KanbanSquare className="h-4 w-4" />
             View tracker
@@ -654,16 +801,21 @@ function Hero({
 
         <motion.div
           {...fadeUp(0.32)}
-          className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-[#EFEFEF] pt-6"
+          className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 border-t pt-6"
+          style={{ borderColor: "var(--border)" }}
         >
           {badges.map((b) => {
             const Icon = b.icon;
             return (
               <div
                 key={b.label}
-                className="flex items-center gap-2 text-[12.5px] font-medium text-[#71717A]"
+                className="flex items-center gap-2 text-[12.5px] font-medium text-[var(--muted)]"
               >
-                <Icon className="h-3.5 w-3.5 text-[#111111]" strokeWidth={2} />
+                <Icon
+                  className="h-3.5 w-3.5"
+                  style={{ color: "var(--text)" }}
+                  strokeWidth={2}
+                />
                 {b.label}
               </div>
             );
@@ -677,7 +829,7 @@ function Hero({
 }
 
 /* ============================================================
-   STATS CARDS — premium, monochrome, animated
+   STATS CARDS — premium, animated
    ============================================================ */
 
 function AnimatedNumber({ value }: { value: number }) {
@@ -734,17 +886,18 @@ function StatsCards({
             key={c.label}
             {...fadeUp(i * 0.06)}
             whileHover={{ y: -3 }}
-            className="group rounded-2xl border border-[#EDEDED] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-shadow duration-200 hover:shadow-[0_16px_36px_rgba(0,0,0,0.06)]"
+            className="group rounded-2xl border p-5 shadow-[0_1px_2px_var(--shadow-sm)] transition-shadow duration-200 hover:shadow-[0_16px_36px_var(--shadow-md)]"
+            style={{ borderColor: "var(--border)", background: "var(--card)" }}
           >
             <IconBadge icon={Icon} tone={c.tone} />
-            <p className="mt-4 text-[27px] font-semibold leading-none tracking-tight text-[#111111]">
+            <p className="mt-4 text-[27px] font-semibold leading-none tracking-tight text-[var(--text)]">
               {typeof c.value === "number" ? (
                 <AnimatedNumber value={c.value} />
               ) : (
                 c.value
               )}
             </p>
-            <p className="mt-2 text-[12.5px] font-medium text-[#A1A1AA]">
+            <p className="mt-2 text-[12.5px] font-medium text-[var(--muted-2)]">
               {c.label}
             </p>
           </motion.div>
@@ -772,20 +925,32 @@ function EmptyState({
   return (
     <motion.div
       {...fadeUp(0)}
-      className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E4E4E7] bg-[#FAFAFA] px-6 py-16 text-center"
+      className="flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-16 text-center"
+      style={{ borderColor: "var(--border-strong)", background: "var(--subtle)" }}
     >
-      <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#ECECEC] bg-white shadow-sm">
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#2563EB]/5 to-transparent" />
-        <Icon className="relative h-6 w-6 text-[#A1A1AA]" strokeWidth={1.5} />
+      <div
+        className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border shadow-sm"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <div
+          className="absolute inset-0 rounded-2xl"
+          style={{ background: "var(--glow)" }}
+        />
+        <Icon
+          className="relative h-6 w-6"
+          style={{ color: "var(--muted-2)" }}
+          strokeWidth={1.5}
+        />
       </div>
-      <p className="text-[14.5px] font-semibold text-[#111111]">{title}</p>
-      <p className="mt-1.5 max-w-xs text-[13px] leading-relaxed text-[#A1A1AA]">
+      <p className="text-[14.5px] font-semibold text-[var(--text)]">{title}</p>
+      <p className="mt-1.5 max-w-xs text-[13px] leading-relaxed text-[var(--muted-2)]">
         {subtitle}
       </p>
       {cta && (
         <button
           onClick={cta.onClick}
-          className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-[#111111] px-4 py-2 text-[12.5px] font-medium text-white transition-all hover:bg-[#262626] active:scale-[0.98]"
+          className="mt-5 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12.5px] font-medium transition-all active:scale-[0.98]"
+          style={{ background: "var(--btn-bg)", color: "var(--btn-text)" }}
         >
           {cta.label}
           <ArrowRight className="h-3.5 w-3.5" />
@@ -821,40 +986,51 @@ function KanbanCard({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97 }}
       whileHover={{ y: -2 }}
-      className="group relative rounded-xl border border-[#EDEDED] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-shadow duration-200 hover:shadow-[0_14px_30px_rgba(0,0,0,0.07)]"
+      className="group relative rounded-xl border p-4 shadow-[0_1px_2px_var(--shadow-sm)] transition-shadow duration-200 hover:shadow-[0_14px_30px_var(--shadow-md)]"
+      style={{ borderColor: "var(--border)", background: "var(--card)" }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-2.5">
-          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F4F4F5] text-[#71717A]">
+          <div
+            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+            style={{ background: "var(--subtle-2)", color: "var(--muted)" }}
+          >
             <Building2 className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-[13.5px] font-semibold text-[#111111]">
+            <p className="truncate text-[13.5px] font-semibold text-[var(--text)]">
               {app.company}
             </p>
-            <p className="truncate text-[12px] text-[#A1A1AA]">{app.role}</p>
+            <p className="truncate text-[12px] text-[var(--muted-2)]">
+              {app.role}
+            </p>
           </div>
         </div>
         <button
           onClick={() => deleteApp(app.id)}
           aria-label={`Remove ${app.company} application`}
-          className="shrink-0 rounded-md p-1 text-[#D4D4D8] opacity-0 transition-all hover:bg-[#FDF2F2] hover:text-[#DC2626] group-hover:opacity-100"
+          className="shrink-0 rounded-md p-1 opacity-0 transition-all group-hover:opacity-100"
+          style={{ color: "var(--border-strong)" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--danger-bg)";
+            e.currentTarget.style.color = "var(--danger)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--border-strong)";
+          }}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
 
       <div className="mt-3.5 flex items-center justify-between">
-        <span className="text-[11px] text-[#A1A1AA]">{date}</span>
+        <span className="text-[11px] text-[var(--muted-2)]">{date}</span>
         <div className="relative">
           <button
             onClick={() => setOpen((v) => !v)}
             className="rounded-full px-2.5 py-1 text-[11px] font-medium transition-transform active:scale-95"
-            style={{
-              color: STATUS_META[app.status].color,
-              background: STATUS_META[app.status].bg,
-              border: `1px solid ${STATUS_META[app.status].border}`,
-            }}
+            style={pillStyle(STATUS_META[app.status].color)}
           >
             {STATUS_META[app.status].label}
           </button>
@@ -865,7 +1041,8 @@ function KanbanCard({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 z-20 mt-1.5 w-36 overflow-hidden rounded-lg border border-[#EDEDED] bg-white py-1 shadow-lg"
+                className="absolute right-0 z-20 mt-1.5 w-36 overflow-hidden rounded-lg border py-1 shadow-lg"
+                style={{ borderColor: "var(--border)", background: "var(--card)" }}
               >
                 {STATUSES.map((s) => (
                   <button
@@ -874,11 +1051,11 @@ function KanbanCard({
                       updateStatus(app.id, s);
                       setOpen(false);
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-[#3F3F46] hover:bg-[#FAFAFA]"
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-[var(--text-2)] hover:bg-[var(--subtle)]"
                   >
                     <span
                       className="h-1.5 w-1.5 rounded-full"
-                      style={{ background: STATUS_META[s].dot }}
+                      style={{ background: STATUS_META[s].color }}
                     />
                     {STATUS_META[s].label}
                   </button>
@@ -901,20 +1078,33 @@ function TrackerBoard({
     <div className="flex flex-col gap-6">
       <StatsCards stats={tracker.stats} />
 
-      <div className="rounded-2xl border border-[#EDEDED] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:p-6">
-        <h2 className="mb-4 text-[14px] font-semibold text-[#111111]">
+      <div
+        className="rounded-2xl border p-5 shadow-[0_1px_2px_var(--shadow-sm)] sm:p-6"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="mb-4 text-[14px] font-semibold text-[var(--text)]">
           Add application
         </h2>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
-            className="flex-1 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3.5 py-2.5 text-[13.5px] text-[#111111] outline-none transition-colors placeholder:text-[#A1A1AA] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/10"
+            className="flex-1 rounded-lg border px-3.5 py-2.5 text-[13.5px] outline-none transition-colors"
+            style={{
+              borderColor: "var(--border-strong)",
+              background: "var(--subtle)",
+              color: "var(--text)",
+            }}
             placeholder="Company name"
             value={tracker.company}
             onChange={(e) => tracker.setCompany(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && tracker.addApplication()}
           />
           <input
-            className="flex-1 rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3.5 py-2.5 text-[13.5px] text-[#111111] outline-none transition-colors placeholder:text-[#A1A1AA] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/10"
+            className="flex-1 rounded-lg border px-3.5 py-2.5 text-[13.5px] outline-none transition-colors"
+            style={{
+              borderColor: "var(--border-strong)",
+              background: "var(--subtle)",
+              color: "var(--text)",
+            }}
             placeholder="Role / position"
             value={tracker.role}
             onChange={(e) => tracker.setRole(e.target.value)}
@@ -927,7 +1117,8 @@ function TrackerBoard({
               !tracker.company.trim() ||
               !tracker.role.trim()
             }
-            className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#111111] px-4 py-2.5 text-[13.5px] font-medium text-white transition-all hover:bg-[#262626] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-2.5 text-[13.5px] font-medium transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ background: "var(--btn-bg)", color: "var(--btn-text)" }}
           >
             {tracker.submitting ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -944,9 +1135,16 @@ function TrackerBoard({
           {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="h-40 rounded-2xl border border-[#EDEDED] bg-white p-4"
+              className="h-40 rounded-2xl border p-4"
+              style={{ borderColor: "var(--border)", background: "var(--card)" }}
             >
-              <div className="h-full w-full animate-shimmer rounded-lg bg-gradient-to-r from-[#F4F4F5] via-[#EDEDED] to-[#F4F4F5] bg-[length:200%_100%]" />
+              <div
+                className="h-full w-full animate-shimmer rounded-lg bg-[length:200%_100%]"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(90deg, var(--subtle-2) 25%, var(--border) 50%, var(--subtle-2) 75%)",
+                }}
+              />
             </div>
           ))}
         </div>
@@ -967,20 +1165,32 @@ function TrackerBoard({
                   <div className="flex items-center gap-2">
                     <span
                       className="h-2 w-2 rounded-full"
-                      style={{ background: meta.dot }}
+                      style={{ background: meta.color }}
                     />
-                    <span className="text-[12.5px] font-semibold text-[#111111]">
+                    <span className="text-[12.5px] font-semibold text-[var(--text)]">
                       {meta.label}
                     </span>
                   </div>
-                  <span className="rounded-full bg-[#F4F4F5] px-1.5 py-0.5 text-[10.5px] font-medium text-[#A1A1AA]">
+                  <span
+                    className="rounded-full px-1.5 py-0.5 text-[10.5px] font-medium"
+                    style={{ background: "var(--subtle-2)", color: "var(--muted-2)" }}
+                  >
                     {apps.length}
                   </span>
                 </div>
-                <div className="flex min-h-[100px] flex-col gap-2.5 rounded-2xl bg-[#FAFAFA] p-2">
+                <div
+                  className="flex min-h-[100px] flex-col gap-2.5 rounded-2xl p-2"
+                  style={{ background: "var(--subtle)" }}
+                >
                   <AnimatePresence mode="popLayout">
                     {apps.length === 0 ? (
-                      <div className="flex h-20 items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] text-[11px] text-[#A1A1AA]">
+                      <div
+                        className="flex h-20 items-center justify-center rounded-xl border border-dashed text-[11px]"
+                        style={{
+                          borderColor: "var(--border-strong)",
+                          color: "var(--muted-2)",
+                        }}
+                      >
                         Empty
                       </div>
                     ) : (
@@ -1021,43 +1231,49 @@ function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-3 rounded-2xl border border-[#EDEDED] bg-white p-4">
+      <div
+        className="flex items-center gap-3 rounded-2xl border p-4"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
         {steps.map((s, i) => (
           <div key={s.n} className="flex flex-1 items-center gap-3">
             <div className="flex items-center gap-2">
               <div
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold transition-colors ${
-                  s.done
-                    ? "bg-[#111111] text-white"
-                    : "bg-[#F4F4F5] text-[#A1A1AA]"
-                }`}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold transition-colors"
+                style={{
+                  background: s.done ? "var(--btn-bg)" : "var(--subtle-2)",
+                  color: s.done ? "var(--btn-text)" : "var(--muted-2)",
+                }}
               >
                 {s.done ? <CheckCircle2 className="h-3.5 w-3.5" /> : s.n}
               </div>
               <span
-                className={`hidden text-[12px] font-medium sm:inline ${
-                  s.done ? "text-[#111111]" : "text-[#A1A1AA]"
-                }`}
+                className="hidden text-[12px] font-medium sm:inline"
+                style={{ color: s.done ? "var(--text)" : "var(--muted-2)" }}
               >
                 {s.label}
               </span>
             </div>
             {i < steps.length - 1 && (
               <div
-                className={`h-px flex-1 ${
-                  s.done ? "bg-[#111111]/25" : "bg-[#EDEDED]"
-                }`}
+                className="h-px flex-1"
+                style={{
+                  background: s.done ? "var(--accent-border)" : "var(--border)",
+                }}
               />
             )}
           </div>
         ))}
       </div>
 
-      <div className="rounded-2xl border border-[#EDEDED] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:p-6">
-        <h2 className="mb-1 text-[14px] font-semibold text-[#111111]">
+      <div
+        className="rounded-2xl border p-5 shadow-[0_1px_2px_var(--shadow-sm)] sm:p-6"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="mb-1 text-[14px] font-semibold text-[var(--text)]">
           1 — Upload resume
         </h2>
-        <p className="mb-4 text-[12.5px] text-[#A1A1AA]">
+        <p className="mb-4 text-[12.5px] text-[var(--muted-2)]">
           Text-based PDFs only. No scanned images.
         </p>
 
@@ -1068,11 +1284,11 @@ function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
             e.preventDefault();
             studio.selectFile(e.dataTransfer.files[0] ?? null);
           }}
-          className={`flex min-h-[130px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 ${
-            studio.resumeFile
-              ? "border-[#2563EB]/25 bg-[#F5F8FF]"
-              : "border-[#E4E4E7] hover:border-[#2563EB]/30 hover:bg-[#FAFAFA]"
-          }`}
+          className="flex min-h-[130px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200"
+          style={{
+            borderColor: studio.resumeFile ? "var(--accent-border)" : "var(--border-strong)",
+            background: studio.resumeFile ? "var(--accent-bg)" : "var(--subtle)",
+          }}
         >
           <input
             ref={studio.fileInputRef}
@@ -1083,30 +1299,36 @@ function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
           />
           {studio.resumeFile ? (
             <div className="flex w-full items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#2563EB] shadow-sm">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg shadow-sm"
+                style={{ background: "var(--card)", color: "var(--accent)" }}
+              >
                 <FileText className="h-4.5 w-4.5" />
               </div>
               <div className="min-w-0 text-left">
-                <p className="truncate text-[13px] font-medium text-[#111111]">
+                <p className="truncate text-[13px] font-medium text-[var(--text)]">
                   {studio.resumeFile.name}
                 </p>
-                <p className="text-[11.5px] text-[#A1A1AA]">
+                <p className="text-[11.5px] text-[var(--muted-2)]">
                   {(studio.resumeFile.size / 1024).toFixed(1)} KB
                 </p>
               </div>
-              <span className="ml-auto shrink-0 text-[11px] text-[#A1A1AA]">
+              <span className="ml-auto shrink-0 text-[11px] text-[var(--muted-2)]">
                 Click to change
               </span>
             </div>
           ) : (
             <>
-              <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F4F5] text-[#71717A]">
+              <div
+                className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-full"
+                style={{ background: "var(--subtle-2)", color: "var(--muted)" }}
+              >
                 <UploadCloud className="h-4.5 w-4.5" />
               </div>
-              <p className="text-[13px] font-medium text-[#3F3F46]">
+              <p className="text-[13px] font-medium text-[var(--text-2)]">
                 Drop your resume here, or click to browse
               </p>
-              <p className="mt-1 text-[11.5px] text-[#A1A1AA]">PDF only</p>
+              <p className="mt-1 text-[11.5px] text-[var(--muted-2)]">PDF only</p>
             </>
           )}
         </div>
@@ -1114,7 +1336,8 @@ function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
         <button
           onClick={studio.uploadPDF}
           disabled={!studio.resumeFile || studio.phase === "uploading"}
-          className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#111111] px-4 py-2.5 text-[13.5px] font-medium text-white transition-all hover:bg-[#262626] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-[13.5px] font-medium transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ background: "var(--btn-bg)", color: "var(--btn-text)" }}
         >
           {studio.phase === "uploading" ? (
             <>
@@ -1135,7 +1358,12 @@ function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-3.5 flex items-center gap-2 rounded-lg border border-[#DDEFE5] bg-[#F2FAF6] px-3.5 py-2.5 text-[12.5px] text-[#065F46]"
+              className="mt-3.5 flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-[12.5px]"
+              style={{
+                borderColor: "var(--success-border)",
+                background: "var(--success-bg)",
+                color: "var(--success-text)",
+              }}
             >
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               <span className="flex-1">
@@ -1161,14 +1389,28 @@ function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
         </AnimatePresence>
 
         {studio.showPreview && studio.resumeText && (
-          <pre className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-[#EDEDED] bg-[#FAFAFA] p-3.5 text-[11.5px] leading-relaxed text-[#71717A]">
+          <pre
+            className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border p-3.5 text-[11.5px] leading-relaxed"
+            style={{
+              borderColor: "var(--border)",
+              background: "var(--subtle)",
+              color: "var(--muted)",
+            }}
+          >
             {studio.resumeText.slice(0, 1500)}
             {studio.resumeText.length > 1500 ? "\n\n… (truncated)" : ""}
           </pre>
         )}
 
         {studio.error && studio.phase === "idle" && (
-          <div className="mt-3.5 flex items-center gap-2 rounded-lg border border-[#F5D5D5] bg-[#FDF2F2] px-3.5 py-2.5 text-[12.5px] text-[#DC2626]">
+          <div
+            className="mt-3.5 flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-[12.5px]"
+            style={{
+              borderColor: "var(--danger-border)",
+              background: "var(--danger-bg)",
+              color: "var(--danger)",
+            }}
+          >
             <XCircle className="h-4 w-4 shrink-0" />
             {studio.error}
           </div>
@@ -1176,42 +1418,59 @@ function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
       </div>
 
       <div
-        className={`relative rounded-2xl border border-[#EDEDED] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:p-6 ${
-          studio.phase === "idle" ? "opacity-50" : ""
-        }`}
+        className="relative rounded-2xl border p-5 shadow-[0_1px_2px_var(--shadow-sm)] sm:p-6"
+        style={{
+          borderColor: "var(--border)",
+          background: "var(--card)",
+          opacity: studio.phase === "idle" ? 0.5 : 1,
+        }}
       >
         {studio.phase === "idle" && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/50 text-[12.5px] font-medium text-[#A1A1AA] backdrop-blur-[1px]">
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl text-[12.5px] font-medium backdrop-blur-[1px]"
+            style={{ background: "var(--card)", opacity: 0.6, color: "var(--muted-2)" }}
+          >
             Extract your resume first
           </div>
         )}
-        <h2 className="mb-3 text-[14px] font-semibold text-[#111111]">
+        <h2 className="mb-3 text-[14px] font-semibold text-[var(--text)]">
           2 — Paste job description
         </h2>
         <textarea
-          className="w-full resize-y rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] px-3.5 py-3 text-[13px] leading-relaxed text-[#111111] outline-none transition-colors placeholder:text-[#A1A1AA] focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/10 disabled:cursor-not-allowed"
+          className="w-full resize-y rounded-lg border px-3.5 py-3 text-[13px] leading-relaxed outline-none transition-colors disabled:cursor-not-allowed"
+          style={{
+            borderColor: "var(--border-strong)",
+            background: "var(--subtle)",
+            color: "var(--text)",
+          }}
           placeholder="Paste the full job description here. More detail = better analysis."
           value={studio.jobDesc}
           onChange={(e) => studio.setJobDesc(e.target.value)}
           disabled={studio.phase === "idle" || studio.phase === "uploading"}
           rows={7}
         />
-        <p className="mt-1.5 text-right text-[11px] text-[#A1A1AA]">
+        <p className="mt-1.5 text-right text-[11px] text-[var(--muted-2)]">
           {studio.wordCount(studio.jobDesc).toLocaleString()} words
         </p>
       </div>
 
       <div
-        className={`relative rounded-2xl border border-[#EDEDED] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:p-6 ${
-          studio.phase === "idle" || !studio.jobDesc.trim() ? "opacity-50" : ""
-        }`}
+        className="relative rounded-2xl border p-5 shadow-[0_1px_2px_var(--shadow-sm)] sm:p-6"
+        style={{
+          borderColor: "var(--border)",
+          background: "var(--card)",
+          opacity: studio.phase === "idle" || !studio.jobDesc.trim() ? 0.5 : 1,
+        }}
       >
         {(studio.phase === "idle" || !studio.jobDesc.trim()) && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/50 text-[12.5px] font-medium text-[#A1A1AA] backdrop-blur-[1px]">
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl text-[12.5px] font-medium backdrop-blur-[1px]"
+            style={{ background: "var(--card)", opacity: 0.6, color: "var(--muted-2)" }}
+          >
             Complete steps 1 &amp; 2 first
           </div>
         )}
-        <h2 className="mb-3 text-[14px] font-semibold text-[#111111]">
+        <h2 className="mb-3 text-[14px] font-semibold text-[var(--text)]">
           3 — Analyze resume
         </h2>
         <button
@@ -1222,7 +1481,8 @@ function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
             studio.phase === "generating" ||
             studio.phase === "uploading"
           }
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-3 text-[13.5px] font-medium text-white shadow-sm transition-all hover:bg-[#1D4ED8] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-[13.5px] font-medium shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ background: "var(--accent)", color: "#FFFFFF" }}
         >
           {studio.phase === "generating" ? (
             <>
@@ -1236,13 +1496,26 @@ function ResumeUploader({ studio }: { studio: ReturnType<typeof useStudio> }) {
           )}
         </button>
         {studio.phase === "generating" && (
-          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-[#F4F4F5]">
-            <div className="h-full w-1/3 animate-progress rounded-full bg-[#2563EB]" />
+          <div
+            className="mt-3 h-1 w-full overflow-hidden rounded-full"
+            style={{ background: "var(--subtle-2)" }}
+          >
+            <div
+              className="h-full w-1/3 animate-progress rounded-full"
+              style={{ background: "var(--accent)" }}
+            />
           </div>
         )}
         {studio.error &&
           (studio.phase === "extracted" || studio.phase === "done") && (
-            <div className="mt-3.5 flex items-center gap-2 rounded-lg border border-[#F5D5D5] bg-[#FDF2F2] px-3.5 py-2.5 text-[12.5px] text-[#DC2626]">
+            <div
+              className="mt-3.5 flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-[12.5px]"
+              style={{
+                borderColor: "var(--danger-border)",
+                background: "var(--danger-bg)",
+                color: "var(--danger)",
+              }}
+            >
               <XCircle className="h-4 w-4 shrink-0" />
               {studio.error}
             </div>
@@ -1257,7 +1530,10 @@ function ResumePreview({ studio }: { studio: ReturnType<typeof useStudio> }) {
 
   if (!analysis) {
     return (
-      <div className="sticky top-24 flex h-full min-h-[420px] flex-col justify-center rounded-2xl border border-[#EDEDED] bg-white p-6">
+      <div
+        className="sticky top-24 flex h-full min-h-[420px] flex-col justify-center rounded-2xl border p-6"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
         <EmptyState
           icon={FileText}
           title="Your analysis will appear here"
@@ -1267,95 +1543,116 @@ function ResumePreview({ studio }: { studio: ReturnType<typeof useStudio> }) {
     );
   }
 
-  const statusStyle = (status: SectionFeedback["status"]) => {
-    if (status === "Good")
-      return { color: "#065F46", bg: "#F2FAF6", border: "#DDEFE5" };
-    if (status === "Needs Work")
-      return { color: "#92400E", bg: "#FBF8F3", border: "#EDE6DA" };
-    return { color: "#DC2626", bg: "#FDF2F2", border: "#F5D5D5" };
+  const statusColor = (status: SectionFeedback["status"]) => {
+    if (status === "Good") return "#16A34A";
+    if (status === "Needs Work") return "#D97706";
+    return "#DC2626";
   };
 
   return (
     <div className="flex flex-col gap-5">
       <motion.div
         {...fadeUp(0)}
-        className="rounded-2xl border border-[#EDEDED] bg-white p-6 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+        className="rounded-2xl border p-6 text-center shadow-[0_1px_2px_var(--shadow-sm)]"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
       >
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE7FE] bg-[#EFF4FF] px-3 py-1 text-[11.5px] font-medium text-[#2563EB]">
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-medium"
+          style={{
+            borderColor: "var(--accent-border)",
+            background: "var(--accent-bg)",
+            color: "var(--accent)",
+          }}
+        >
           <KeyRound className="h-3 w-3" /> ATS Match Score
         </span>
-        <div className="mt-4 text-[56px] font-semibold leading-none tracking-tight text-[#111111]">
+        <div className="mt-4 text-[56px] font-semibold leading-none tracking-tight text-[var(--text)]">
           {analysis.overallScore}
-          <span className="text-[22px] font-medium text-[#A1A1AA]">/100</span>
+          <span className="text-[22px] font-medium text-[var(--muted-2)]">
+            /100
+          </span>
         </div>
-        <div className="mx-auto mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-[#F4F4F5]">
+        <div
+          className="mx-auto mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full"
+          style={{ background: "var(--subtle-2)" }}
+        >
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${analysis.overallScore}%` }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="h-full rounded-full bg-[#111111]"
+            transition={{ duration: 0.8, ease: EASE }}
+            className="h-full rounded-full"
+            style={{ background: "var(--btn-bg)" }}
           />
         </div>
-        <p className="mx-auto mt-4 max-w-md text-[13px] leading-relaxed text-[#71717A]">
+        <p className="mx-auto mt-4 max-w-md text-[13px] leading-relaxed text-[var(--muted)]">
           {analysis.summary}
         </p>
-        <button className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#111111] px-4 py-2.5 text-[13px] font-medium text-white transition-all hover:bg-[#262626] active:scale-[0.98]">
+        <button
+          className="mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-[13px] font-medium transition-all active:scale-[0.98]"
+          style={{ background: "var(--btn-bg)", color: "var(--btn-text)" }}
+        >
           <Download className="h-4 w-4" /> Download ATS-ready PDF
         </button>
       </motion.div>
 
-      <div className="max-h-[560px] overflow-y-auto rounded-2xl border border-[#EDEDED] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:p-6">
-        <h2 className="mb-4 text-[14px] font-semibold text-[#111111]">
+      <div
+        className="max-h-[560px] overflow-y-auto rounded-2xl border p-5 shadow-[0_1px_2px_var(--shadow-sm)] sm:p-6"
+        style={{ borderColor: "var(--border)", background: "var(--card)" }}
+      >
+        <h2 className="mb-4 text-[14px] font-semibold text-[var(--text)]">
           Section-by-section feedback
         </h2>
         <div className="flex flex-col gap-3">
           {analysis.sections.map((sec, idx) => {
-            const st = statusStyle(sec.status);
+            const color = statusColor(sec.status);
             return (
               <motion.div
                 key={sec.name}
                 {...fadeUp(idx * 0.05)}
-                className="rounded-xl border border-[#EDEDED] bg-[#FAFAFA] p-4"
+                className="rounded-xl border p-4"
+                style={{ borderColor: "var(--border)", background: "var(--subtle)" }}
               >
                 <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[13px] font-semibold text-[#111111]">
+                  <span className="text-[13px] font-semibold text-[var(--text)]">
                     {sec.name}
                   </span>
                   <div className="flex items-center gap-2">
                     <span
                       className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
-                      style={{
-                        color: st.color,
-                        background: st.bg,
-                        border: `1px solid ${st.border}`,
-                      }}
+                      style={pillStyle(color)}
                     >
                       {sec.status}
                     </span>
-                    <span className="text-[12.5px] font-semibold text-[#111111]">
+                    <span className="text-[12.5px] font-semibold text-[var(--text)]">
                       {sec.score}/100
                     </span>
                   </div>
                 </div>
-                <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-[#EDEDED]">
+                <div
+                  className="mb-3 h-1 w-full overflow-hidden rounded-full"
+                  style={{ background: "var(--border)" }}
+                >
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${sec.score}%` }}
                     transition={{ duration: 0.7, delay: 0.1 }}
                     className="h-full rounded-full"
-                    style={{ background: st.color }}
+                    style={{ background: color }}
                   />
                 </div>
-                <p className="mb-2.5 text-[12.5px] leading-relaxed text-[#71717A]">
+                <p className="mb-2.5 text-[12.5px] leading-relaxed text-[var(--muted)]">
                   {sec.feedback}
                 </p>
                 <ul className="flex flex-col gap-1.5">
                   {sec.suggestions.map((s, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-2 text-[12px] text-[#3F3F46]"
+                      className="flex items-start gap-2 text-[12px] text-[var(--text-2)]"
                     >
-                      <ArrowRight className="mt-0.5 h-3 w-3 shrink-0 text-[#2563EB]" />
+                      <ArrowRight
+                        className="mt-0.5 h-3 w-3 shrink-0"
+                        style={{ color: "var(--accent)" }}
+                      />
                       {s}
                     </li>
                   ))}
@@ -1367,32 +1664,46 @@ function ResumePreview({ studio }: { studio: ReturnType<typeof useStudio> }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-[#EDEDED] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-          <h2 className="mb-3 text-[13.5px] font-semibold text-[#111111]">
+        <div
+          className="rounded-2xl border p-5 shadow-[0_1px_2px_var(--shadow-sm)]"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <h2 className="mb-3 text-[13.5px] font-semibold text-[var(--text)]">
             Missing keywords
           </h2>
           <div className="flex flex-wrap gap-1.5">
             {analysis.missingKeywords.map((kw) => (
               <span
                 key={kw}
-                className="rounded-full border border-[#F5D5D5] bg-[#FDF2F2] px-2.5 py-1 text-[11.5px] font-medium text-[#DC2626]"
+                className="rounded-full border px-2.5 py-1 text-[11.5px] font-medium"
+                style={{
+                  borderColor: "var(--danger-border)",
+                  background: "var(--danger-bg)",
+                  color: "var(--danger)",
+                }}
               >
                 {kw}
               </span>
             ))}
           </div>
         </div>
-        <div className="rounded-2xl border border-[#EDEDED] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-          <h2 className="mb-3 text-[13.5px] font-semibold text-[#111111]">
+        <div
+          className="rounded-2xl border p-5 shadow-[0_1px_2px_var(--shadow-sm)]"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <h2 className="mb-3 text-[13.5px] font-semibold text-[var(--text)]">
             Quick wins
           </h2>
           <ul className="flex flex-col gap-2">
             {analysis.quickWins.map((win, i) => (
               <li
                 key={i}
-                className="flex items-start gap-2 text-[12px] leading-relaxed text-[#3F3F46]"
+                className="flex items-start gap-2 text-[12px] leading-relaxed text-[var(--text-2)]"
               >
-                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#16A34A]" />
+                <CheckCircle2
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                  style={{ color: "var(--success)" }}
+                />
                 {win}
               </li>
             ))}
@@ -1405,11 +1716,13 @@ function ResumePreview({ studio }: { studio: ReturnType<typeof useStudio> }) {
 
 function Footer() {
   return (
-    <footer className="mt-16 border-t border-[#EFEFEF] py-8">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 text-[12.5px] text-[#A1A1AA] sm:flex-row">
+    <footer className="mt-16 border-t py-8" style={{ borderColor: "var(--border)" }}>
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 text-[12.5px] text-[var(--muted-2)] sm:flex-row">
         <span>© {new Date().getFullYear()} ApplyOS. Your career companion.</span>
         <span className="flex items-center gap-1.5">
-          Built with <Sparkles className="h-3 w-3 text-[#2563EB]" /> and intent.
+          Built with{" "}
+          <Sparkles className="h-3 w-3" style={{ color: "var(--accent)" }} /> and
+          intent.
         </span>
       </div>
     </footer>
@@ -1424,17 +1737,81 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const tracker = useTracker();
   const studio = useStudio();
+  const { theme, toggleTheme } = useTheme();
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] antialiased">
+    <div data-theme={theme} className="min-h-screen transition-colors duration-300" style={{ background: "var(--bg)" }}>
       <style>{`
+        [data-theme="light"] {
+          --bg: #FAFAFA;
+          --nav-bg: rgba(255,255,255,0.7);
+          --card: #FFFFFF;
+          --border: #EDEDED;
+          --border-strong: #E4E4E7;
+          --text: #111111;
+          --text-2: #3F3F46;
+          --muted: #71717A;
+          --muted-2: #A1A1AA;
+          --subtle: #FAFAFA;
+          --subtle-2: #F4F4F5;
+          --accent: #2563EB;
+          --accent-bg: #EFF4FF;
+          --accent-border: #DCE7FE;
+          --btn-bg: #111111;
+          --btn-text: #FFFFFF;
+          --danger: #DC2626;
+          --danger-bg: #FDF2F2;
+          --danger-border: #F5D5D5;
+          --success: #16A34A;
+          --success-text: #065F46;
+          --success-bg: #F2FAF6;
+          --success-border: #DDEFE5;
+          --glow: rgba(37,99,235,0.08);
+          --shadow-sm: rgba(0,0,0,0.03);
+          --shadow-md: rgba(0,0,0,0.06);
+          --shadow-lg: rgba(0,0,0,0.09);
+        }
+        [data-theme="dark"] {
+          --bg: #0A0A0B;
+          --nav-bg: rgba(10,10,11,0.7);
+          --card: #131316;
+          --border: #232326;
+          --border-strong: #2A2A2E;
+          --text: #F4F4F5;
+          --text-2: #D4D4D8;
+          --muted: #A1A1AA;
+          --muted-2: #71717A;
+          --subtle: #18181B;
+          --subtle-2: #1D1D20;
+          --accent: #3B82F6;
+          --accent-bg: rgba(59,130,246,0.12);
+          --accent-border: rgba(59,130,246,0.3);
+          --btn-bg: #F4F4F5;
+          --btn-text: #111111;
+          --danger: #F87171;
+          --danger-bg: rgba(248,113,113,0.1);
+          --danger-border: rgba(248,113,113,0.28);
+          --success: #4ADE80;
+          --success-text: #86EFAC;
+          --success-bg: rgba(74,222,128,0.1);
+          --success-border: rgba(74,222,128,0.28);
+          --glow: rgba(59,130,246,0.16);
+          --shadow-sm: rgba(0,0,0,0.25);
+          --shadow-md: rgba(0,0,0,0.4);
+          --shadow-lg: rgba(0,0,0,0.55);
+        }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         .animate-shimmer { animation: shimmer 1.4s infinite; }
         @keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
         .animate-progress { animation: progress 1.2s ease-in-out infinite; }
       `}</style>
 
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        theme={theme}
+        toggleTheme={toggleTheme}
+      />
 
       {activeTab === "dashboard" && (
         <Hero setActiveTab={setActiveTab} stats={tracker.stats} />
@@ -1444,7 +1821,7 @@ export default function Home() {
         {activeTab === "dashboard" && (
           <div className="flex flex-col gap-10">
             <div>
-              <h2 className="mb-5 text-[13px] font-semibold uppercase tracking-wide text-[#A1A1AA]">
+              <h2 className="mb-5 text-[13px] font-semibold uppercase tracking-wide text-[var(--muted-2)]">
                 Your pipeline
               </h2>
               <StatsCards stats={tracker.stats} />
@@ -1454,19 +1831,20 @@ export default function Home() {
               <motion.div
                 {...fadeUp(0)}
                 whileHover={{ y: -3 }}
-                className="group rounded-2xl border border-[#EDEDED] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-shadow hover:shadow-[0_20px_40px_rgba(0,0,0,0.07)]"
+                className="group rounded-2xl border p-6 shadow-[0_1px_2px_var(--shadow-sm)] transition-shadow hover:shadow-[0_20px_40px_var(--shadow-md)]"
+                style={{ borderColor: "var(--border)", background: "var(--card)" }}
               >
                 <IconBadge icon={KanbanSquare} tone="blue" />
-                <h3 className="mb-1.5 mt-4 text-[15.5px] font-semibold text-[#111111]">
+                <h3 className="mb-1.5 mt-4 text-[15.5px] font-semibold text-[var(--text)]">
                   Job Tracker
                 </h3>
-                <p className="mb-5 text-[13px] leading-relaxed text-[#71717A]">
+                <p className="mb-5 text-[13px] leading-relaxed text-[var(--muted)]">
                   Manage every application on a Kanban board — from applied to
                   offer.
                 </p>
                 <button
                   onClick={() => setActiveTab("tracker")}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#111111]"
+                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--text)]"
                 >
                   Open tracker
                   <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -1476,19 +1854,20 @@ export default function Home() {
               <motion.div
                 {...fadeUp(0.08)}
                 whileHover={{ y: -3 }}
-                className="group rounded-2xl border border-[#EDEDED] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-shadow hover:shadow-[0_20px_40px_rgba(0,0,0,0.07)]"
+                className="group rounded-2xl border p-6 shadow-[0_1px_2px_var(--shadow-sm)] transition-shadow hover:shadow-[0_20px_40px_var(--shadow-md)]"
+                style={{ borderColor: "var(--border)", background: "var(--card)" }}
               >
                 <IconBadge icon={Sparkles} tone="dark" />
-                <h3 className="mb-1.5 mt-4 text-[15.5px] font-semibold text-[#111111]">
+                <h3 className="mb-1.5 mt-4 text-[15.5px] font-semibold text-[var(--text)]">
                   AI Resume Studio
                 </h3>
-                <p className="mb-5 text-[13px] leading-relaxed text-[#71717A]">
+                <p className="mb-5 text-[13px] leading-relaxed text-[var(--muted)]">
                   Get an ATS score, section feedback, and keyword gaps in
                   seconds.
                 </p>
                 <button
                   onClick={() => setActiveTab("studio")}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#111111]"
+                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--text)]"
                 >
                   Open studio
                   <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -1501,10 +1880,10 @@ export default function Home() {
         {activeTab === "tracker" && (
           <div className="flex flex-col gap-6">
             <motion.div {...fadeUp(0)}>
-              <h1 className="text-[28px] font-semibold tracking-tight text-[#111111]">
+              <h1 className="text-[28px] font-semibold tracking-tight text-[var(--text)]">
                 Job Tracker
               </h1>
-              <p className="mt-1 text-[13.5px] text-[#71717A]">
+              <p className="mt-1 text-[13.5px] text-[var(--muted)]">
                 Manage all your job applications in one place.
               </p>
             </motion.div>
@@ -1515,10 +1894,10 @@ export default function Home() {
         {activeTab === "studio" && (
           <div className="flex flex-col gap-6">
             <motion.div {...fadeUp(0)}>
-              <h1 className="text-[28px] font-semibold tracking-tight text-[#111111]">
+              <h1 className="text-[28px] font-semibold tracking-tight text-[var(--text)]">
                 AI Resume Studio
               </h1>
-              <p className="mt-1 text-[13.5px] text-[#71717A]">
+              <p className="mt-1 text-[13.5px] text-[var(--muted)]">
                 Upload your resume and match it against any job description.
               </p>
             </motion.div>
